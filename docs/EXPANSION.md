@@ -65,3 +65,25 @@ Legend:
 5. Compact mode, sidebar order and visibility, text size
 6. Update channels, changelog, local update history
 7. Later: storage location, selective restore, languages
+
+## Results (2026-11-16)
+
+How each item was tested:
+- **live**: exercised in the running app or against the real service
+- **unit**: covered by automated tests on the core logic
+- **built**: compiles and renders, but the action itself wasn't run
+
+| Feature | Status | Tested |
+|---|---|---|
+| System tray (Open, Play, HUD, Quit) and close-to-tray | ✅ | live: closing with the option on hides the window and keeps the app running; the tray icon brings it back |
+| Global shortcuts (open, HUD, play), customizable, off by default | ✅ | live: Ctrl+Alt+N showed the hidden window; Ctrl+Alt+H opened then closed the HUD. unit: parsing and duplicate rejection. The Play shortcut uses the same launch path as the Play button but wasn't pressed, to avoid starting Roblox during the test |
+| Notification center (bell, unread count, clear) | ✅ | Records Roblox updates, game joins, safe-mode launches and launch problems from the tray or shortcuts. unit: log ordering and cap. built: the bell renders; entries appear once something happens |
+| Stable/beta channel, changelog, update history | ✅ 🔑 | unit: channel filtering, version ordering, rejecting non-GitHub links. live: the update history recorded 0.1.0 on first run. Changelog shows "no releases yet" until releases are published |
+| Rollback | ⛔ for now | Needs a self-updater and signed releases. The changelog explains this and links each release page |
+| Repair check and repair | ✅ | live: Diagnostics shows the player's Authenticode result (this PC: Valid, Roblox Corporation). Repair re-runs the already-tested official installer flow |
+| Safe-mode launch | ✅ built | No FastFlags and Roblox's original files for one launch; restored on the next normal launch. Not run, to avoid starting Roblox during testing |
+| Server history with Rejoin | ✅ built | From local history; one row per server |
+| Desktop game shortcut | ✅ unit | `.url` file with the `roblox://experiences/start?placeId=` link; name cleaned up for Windows. The button wasn't clicked in the app |
+| Compact mode, text/interface size, sidebar reorder/hide | ✅ built | unit: settings validation. Play can't be hidden; Settings stays last |
+| Discord Rich Presence | ✅ live | With the app ID 1572124061524434985: Discord accepted the connection; a test presence was set and cleared (`cargo run --example discord_test -- <id>`) |
+| Configurable storage location, selective restore, languages | ⬜ | Deferred (see above) |

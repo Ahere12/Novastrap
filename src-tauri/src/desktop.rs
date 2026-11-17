@@ -41,10 +41,15 @@ fn play(app: &AppHandle) {
     });
 }
 
+/// Shortcut and tray handlers run on the event loop thread; creating a window there can
+/// deadlock on Windows, so the HUD is opened from an async task instead.
 fn toggle_hud(app: &AppHandle) {
-    if let Err(e) = system::hud_toggle(app.clone()) {
-        notice(app, NoticeKind::Error, "Couldn't open the HUD", &e.to_string());
-    }
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        if let Err(e) = system::hud_toggle(app.clone()) {
+            notice(&app, NoticeKind::Error, "Couldn't open the HUD", &e.to_string());
+        }
+    });
 }
 
 pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
@@ -94,6 +99,7 @@ pub fn apply_shortcuts(app: &AppHandle, cfg: &Shortcuts) -> Vec<String> {
                 Ok(sc) => {
                     let result = gs.on_shortcut(sc, move |app, _, ev| {
                         if ev.state == ShortcutState::Pressed {
+                            log::info!("global shortcut: {action}");
                             match action {
                                 "show" => show_main(app),
                                 "hud" => toggle_hud(app),
