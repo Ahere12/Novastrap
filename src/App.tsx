@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactElement } from "react";
-import { backend, errorMessage } from "./api/backend";
+import { backend, errorMessage, type AccountView } from "./api/backend";
 import { AppProvider, useApp, type PageId } from "./app/context";
 import { Accounts } from "./pages/Accounts";
 import { Catalog } from "./pages/Catalog";
@@ -13,20 +13,40 @@ import { Settings } from "./pages/Settings";
 import { Trading } from "./pages/Trading";
 import { GameModal } from "./ui/games";
 import { Logo } from "./ui/Logo";
+import { Img } from "./ui/kit";
 import "./App.css";
 
-const NAV: { id: PageId; label: string; icon: string }[] = [
-  { id: "home", label: "Home", icon: "M3 11 12 3l9 8v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" },
-  { id: "discover", label: "Discover", icon: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20m4 6-2.5 5.5L8 16l2.5-5.5z" },
-  { id: "servers", label: "Servers", icon: "M4 4h16v6H4zm0 10h16v6H4zm3-7h.01M7 17h.01" },
-  { id: "instances", label: "Instances", icon: "M3 5h12v10H3zM9 9h12v10H9" },
-  { id: "accounts", label: "Accounts", icon: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8m-8 9a8 8 0 0 1 16 0" },
-  { id: "performance", label: "Performance", icon: "M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0M16 4v4M10 10v4M18 16v4" },
-  { id: "customize", label: "Customize", icon: "M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1.5-1.5 0-1.2-1-1.5-1-2.5s.8-1.5 2-1.5H17a4 4 0 0 0 4-4c0-4.4-4-8.5-9-8.5M7.5 11h.01M10 7h.01M15 7h.01" },
-  { id: "catalog", label: "Catalog", icon: "M6 7h12l-1 13H7zM9 7a3 3 0 0 1 6 0" },
-  { id: "trading", label: "Trading", icon: "M4 8h13l-3-3M20 16H7l3 3" },
-  { id: "settings", label: "Settings", icon: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6m7.4-3a7.4 7.4 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14.5 3h-5l-.4 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6a7.4 7.4 0 0 0 0 2.4l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2l.4 2.6h5l.4-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2" },
+/**
+ * Launcher layout: a rail of sections on the left, each section owning a row of tabs across the top.
+ * The Play section's first tab is the home screen with the big Play bar.
+ */
+interface Section { id: string; label: string; sub: string; icon: string; tabs: { id: PageId; label: string }[] }
+
+const ICONS = {
+  explore: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20m4 6-2.5 5.5L8 16l2.5-5.5z",
+  tune: "M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M16 4v4M10 10v4M18 16v4",
+  market: "M6 7h12l-1 13H7zM9 7a3 3 0 0 1 6 0",
+  settings: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6m7.4-3a7.4 7.4 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14.5 3h-5l-.4 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6a7.4 7.4 0 0 0 0 2.4l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2l.4 2.6h5l.4-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2",
+  hud: "M3 5h18v11H3zM8 20h8M12 16v4",
+};
+
+const SECTIONS: Section[] = [
+  { id: "play", label: "Roblox Player", sub: "Play", icon: "", tabs: [
+    { id: "home", label: "Play" }, { id: "instances", label: "Instances" }, { id: "servers", label: "Servers" },
+  ] },
+  { id: "explore", label: "Explore", sub: "Experiences", icon: ICONS.explore, tabs: [{ id: "discover", label: "Discover" }] },
+  { id: "market", label: "Marketplace", sub: "Catalog & trading", icon: ICONS.market, tabs: [
+    { id: "catalog", label: "Catalog" }, { id: "trading", label: "Trading" },
+  ] },
+  { id: "tune", label: "Tuning", sub: "Performance & mods", icon: ICONS.tune, tabs: [
+    { id: "performance", label: "Performance" }, { id: "customize", label: "Customize" },
+  ] },
 ];
+const SETTINGS_SECTION: Section = { id: "settings", label: "Settings", sub: "", icon: ICONS.settings, tabs: [
+  { id: "settings", label: "Launcher settings" }, { id: "accounts", label: "Accounts" },
+] };
+
+const sectionOf = (p: PageId) => [...SECTIONS, SETTINGS_SECTION].find((s) => s.tabs.some((t) => t.id === p)) ?? SECTIONS[0];
 
 const FONT_STACK: Record<string, string> = {
   system: `"Segoe UI Variable", "Segoe UI", system-ui, sans-serif`,
@@ -36,9 +56,9 @@ const FONT_STACK: Record<string, string> = {
   georgia: `Georgia, serif`,
 };
 
-function Icon({ d }: { d: string }) {
+function Icon({ d, size = 22 }: { d: string; size?: number }) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d={d} />
     </svg>
   );
@@ -65,11 +85,39 @@ function useTheme() {
   return { bg: ap?.background ? bg : null, dim: ap?.backgroundDim ?? 70 };
 }
 
+/** Account chip at the top of the rail; reloads when accounts change. */
+function RailAccount() {
+  const { go, page } = useApp();
+  const [active, setActive] = useState<AccountView | null>(null);
+  useEffect(() => {
+    backend.accountsList().then((v) => setActive(v.accounts.find((a) => a.active) ?? null)).catch(() => setActive(null));
+  }, [page]);
+  return (
+    <button className="rail-account" onClick={() => go("accounts")} title="Manage accounts">
+      {active ? <Img src={active.avatarUrl} alt="" className="avatar sm" /> : <span className="avatar sm avatar-empty" />}
+      <span className="rail-account-text">
+        <b>{active ? active.displayName : "No account"}</b>
+        <span className="muted small">{active ? `@${active.username}` : "Add one"}</span>
+      </span>
+    </button>
+  );
+}
+
+function RailItem({ s, active, onClick }: { s: Section; active: boolean; onClick: () => void }) {
+  return (
+    <button className={`rail-item ${active ? "active" : ""}`} aria-current={active ? "page" : undefined} onClick={onClick}>
+      <span className="rail-icon">{s.icon ? <Icon d={s.icon} /> : <Logo size={30} />}</span>
+      <span className="rail-text"><b>{s.label}</b>{s.sub && <span>{s.sub}</span>}</span>
+    </button>
+  );
+}
+
 function Shell() {
   const { page, go, game, toasts, toast } = useApp();
   const [version, setVersion] = useState("");
   const { bg, dim } = useTheme();
   useEffect(() => { backend.appInfo().then((i) => setVersion(i.version)).catch(() => undefined); }, []);
+  const section = sectionOf(page);
 
   const pages: Record<PageId, ReactElement> = {
     home: <Home />, discover: <Discover />, servers: <Servers />, instances: <Instances />, accounts: <Accounts />,
@@ -78,27 +126,34 @@ function Shell() {
 
   return (
     <div className="shell">
-      {bg && <div className="bg-image" style={{ backgroundImage: `url(${bg})` }}><div style={{ background: `rgba(11,12,17,${dim / 100})` }} /></div>}
-      <nav className="sidebar" aria-label="Main">
-        <div className="brand"><Logo /><span>Novastrap</span></div>
-        <ul>
-          {NAV.map((s) => (
-            <li key={s.id}>
-              <button className={`nav-item ${s.id === page ? "active" : ""}`} aria-current={s.id === page ? "page" : undefined} onClick={() => go(s.id)}>
-                <Icon d={s.icon} /><span>{s.label}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-        <div className="sidebar-foot">
-          <button className="btn btn-sm full" title="Opens or closes an always-on-top window for a second screen"
+      {bg && <div className="bg-image" style={{ backgroundImage: `url(${bg})` }}><div style={{ background: `rgba(18,18,20,${dim / 100})` }} /></div>}
+      <nav className="rail" aria-label="Sections">
+        <RailAccount />
+        <div className="rail-list">
+          {SECTIONS.map((s) => <RailItem key={s.id} s={s} active={s.id === section.id} onClick={() => go(s.tabs[0].id)} />)}
+        </div>
+        <div className="rail-foot">
+          <button className="rail-item small" title="Opens or closes an always-on-top window for a second screen"
             onClick={async () => { try { await backend.hudToggle(); } catch (e) { toast(false, errorMessage(e)); } }}>
-            Second-screen HUD
+            <span className="rail-icon"><Icon d={ICONS.hud} size={20} /></span><span className="rail-text"><b>Second-screen HUD</b></span>
           </button>
-          <span className="muted small">{version && `v${version}`}</span>
+          <RailItem s={SETTINGS_SECTION} active={section.id === "settings"} onClick={() => go("settings")} />
+          <span className="rail-version">Novastrap {version && `v${version}`}</span>
         </div>
       </nav>
-      <main className="content" key={page}>{pages[page]}</main>
+      <div className="main">
+        <header className="topbar">
+          <h1 className="topbar-title">{section.label}</h1>
+          <div className="topbar-tabs" role="tablist">
+            {section.tabs.map((t) => (
+              <button key={t.id} role="tab" aria-selected={t.id === page} className={`top-tab ${t.id === page ? "active" : ""}`} onClick={() => go(t.id)}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </header>
+        <main className={`content ${page === "home" ? "content-play" : ""}`} key={page}>{pages[page]}</main>
+      </div>
       {game && <GameModal refGame={game} />}
       <div className="toasts" aria-live="polite">
         {toasts.map((t) => <div key={t.id} className={`toast ${t.ok ? "" : "bad"}`}>{t.text}</div>)}
