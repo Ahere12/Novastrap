@@ -10,6 +10,8 @@ Legend:
 
 **Layout (2026-11-16):** a game-launcher layout. A rail on the left holds the account chip and four sections (Roblox Player, Explore, Marketplace, Tuning), with HUD and Settings at the bottom. Each section has its own row of tabs across the top. The Play tab is a banner (a screenshot of the last-played experience, or original artwork) above a Play bar with an instance picker, a large Play/Install button and the version/update status. All artwork and styling are original. The Play-bar instance choice is saved as `instances.default_profile`.
 
+**Themes:** two styles under Customize → Theme. **Classic** (the default) has an early-2000s web look: a light page, a blue header strip with folder tabs, glossy gradient buttons, panels with title bars, Verdana text and yellow tooltip-style toasts. **Launcher** is the dark look. Both use original styling; no Roblox logos, wordmarks or artwork are used. Saved settings with the old internal theme name `nova` (never selectable) display as Classic.
+
 **UI verification status (2026-11-16):** every page compiles under strict TypeScript and the app runs. The shell, navigation, Accounts and the Discover loading state were checked in the running app. The other pages haven't been looked at on screen yet: testing stopped when the developer started playing Roblox. Network commands now log their timing to the app log for the next check.
 
 Tests: `core` has **68 unit tests** plus **10 live tests** (`cargo test -- --ignored`) against Roblox, Rolimons, Windows Credential Manager and real client logs.

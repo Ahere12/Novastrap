@@ -48,13 +48,17 @@ const SETTINGS_SECTION: Section = { id: "settings", label: "Settings", sub: "", 
 
 const sectionOf = (p: PageId) => [...SECTIONS, SETTINGS_SECTION].find((s) => s.tabs.some((t) => t.id === p)) ?? SECTIONS[0];
 
+// "system" isn't listed: it leaves the theme's own font in place (see App.css).
 const FONT_STACK: Record<string, string> = {
-  system: `"Segoe UI Variable", "Segoe UI", system-ui, sans-serif`,
   segoe: `"Segoe UI", sans-serif`,
+  verdana: `Verdana, Tahoma, Arial, sans-serif`,
   bahnschrift: `Bahnschrift, "Segoe UI", sans-serif`,
   consolas: `Consolas, "Cascadia Code", monospace`,
   georgia: `Georgia, serif`,
 };
+
+/** "launcher" is the dark theme; anything else (including the legacy "nova") is Classic. */
+export const themeOf = (t: string) => (t === "launcher" ? "launcher" : "classic");
 
 function Icon({ d, size = 22 }: { d: string; size?: number }) {
   return (
@@ -73,7 +77,9 @@ function useTheme() {
     if (!ap) return;
     const r = document.documentElement.style;
     r.setProperty("--accent", ap.accent);
-    r.setProperty("--font", FONT_STACK[ap.font] ?? FONT_STACK.system);
+    const stack = FONT_STACK[ap.font];
+    if (stack) r.setProperty("--font", stack); else r.removeProperty("--font");
+    document.documentElement.dataset.theme = themeOf(ap.theme);
     document.documentElement.dataset.motion = ap.reduceMotion ? "reduced" : "full";
   }, [ap]);
   useEffect(() => {

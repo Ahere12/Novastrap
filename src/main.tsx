@@ -6,6 +6,8 @@ import "./App.css";
 
 const isHud = (window as { __NOVASTRAP_WINDOW__?: string }).__NOVASTRAP_WINDOW__ === "hud" || window.location.hash === "#hud";
 document.documentElement.dataset.window = isHud ? "hud" : "main";
+// Default theme until settings load (the HUD keeps the dark look).
+if (!isHud) document.documentElement.dataset.theme = "classic";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>{isHud ? <Hud /> : <App />}</React.StrictMode>,

@@ -47,6 +47,9 @@ impl Settings {
         if self.appearance.background_dim > 95 {
             return Err(AppError::InvalidInput("Background dimming is 0–95%".into()));
         }
+        if !THEMES.contains(&self.appearance.theme.as_str()) {
+            return Err(AppError::InvalidInput("Unknown theme".into()));
+        }
         if !FONTS.contains(&self.appearance.font.as_str()) {
             return Err(AppError::InvalidInput("Unknown font".into()));
         }
@@ -55,7 +58,12 @@ impl Settings {
 }
 
 /// Launcher fonts (system-installed families only; nothing is downloaded).
-pub const FONTS: &[&str] = &["system", "segoe", "bahnschrift", "consolas", "georgia"];
+/// "system" means the theme's own font (Verdana for Classic, Segoe UI for Launcher).
+pub const FONTS: &[&str] = &["system", "segoe", "verdana", "bahnschrift", "consolas", "georgia"];
+
+/// Launcher themes. "nova" is the name the dark theme had before themes were selectable; it is
+/// still accepted in saved files and shown as Classic, since nobody could have picked it.
+pub const THEMES: &[&str] = &["classic", "launcher", "nova"];
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default, rename_all = "camelCase")]
@@ -88,7 +96,7 @@ pub struct Appearance {
 impl Default for Appearance {
     fn default() -> Self {
         Appearance {
-            theme: "nova".into(),
+            theme: "classic".into(),
             accent: "#8b7bff".into(),
             background: None,
             background_dim: 70,
@@ -178,5 +186,10 @@ mod tests {
         s.appearance.accent = "#00ffaa".into();
         s.appearance.font = "Comic".into();
         assert!(s.validate().is_err());
+        s.appearance.font = "verdana".into();
+        s.appearance.theme = "neon".into();
+        assert!(s.validate().is_err());
+        s.appearance.theme = "launcher".into();
+        assert!(s.validate().is_ok());
     }
 }
