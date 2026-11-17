@@ -19,6 +19,22 @@ pub fn notice(app: &AppHandle, kind: NoticeKind, title: &str, body: &str) {
     }
 }
 
+/// Records a notice only the first time `key` is seen. Returns false for a repeat.
+pub fn notice_once(app: &AppHandle, key: &str, kind: NoticeKind, title: &str, body: &str) -> bool {
+    let state = app.state::<AppState>();
+    let mut added = None;
+    if state.notices.update(|f| added = f.push_once(key, now(), kind, title, body)).is_err() {
+        return false;
+    }
+    match added {
+        Some(n) => {
+            let _ = app.emit("notice", n);
+            true
+        }
+        None => false,
+    }
+}
+
 pub fn show_main(app: &AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.show();
@@ -46,7 +62,7 @@ fn play(app: &AppHandle) {
 fn toggle_hud(app: &AppHandle) {
     let app = app.clone();
     tauri::async_runtime::spawn(async move {
-        if let Err(e) = system::hud_toggle(app.clone()) {
+        if let Err(e) = system::hud_toggle(app.clone()).await {
             notice(&app, NoticeKind::Error, "Couldn't open the HUD", &e.to_string());
         }
     });

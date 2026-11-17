@@ -112,9 +112,11 @@ async fn on_join(app: &AppHandle, tracker: &mut Tracker) {
                 icon = d.icon_url;
             }
         }
+        // on_join runs again while the name is still unknown, and the log is replayed after a
+        // restart; notify only the first time this server is seen.
         let game = s.game_name.clone().unwrap_or_else(|| format!("Place {}", s.place_id));
-        crate::desktop::notice(app, novastrap_core::notices::NoticeKind::Game, "Joined a game", &game);
-        if state.settings.get().notifications.game_joined {
+        let first = crate::desktop::notice_once(app, &format!("game:{}", s.job_id), novastrap_core::notices::NoticeKind::Game, "Joined a game", &game);
+        if first && state.settings.get().notifications.game_joined {
             let _ = app
                 .notification()
                 .builder()

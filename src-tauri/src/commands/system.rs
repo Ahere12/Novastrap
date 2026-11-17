@@ -57,8 +57,10 @@ pub fn live_activity(state: State<'_, AppState>) -> Live {
     state.live.lock().unwrap().clone()
 }
 
+/// Async on purpose: sync commands run on the main thread, and creating or closing a window
+/// there deadlocks on Windows (found in QA: the HUD toggle hung the IPC call).
 #[tauri::command]
-pub fn hud_toggle(app: tauri::AppHandle) -> AppResult<bool> {
+pub async fn hud_toggle(app: tauri::AppHandle) -> AppResult<bool> {
     if let Some(w) = app.get_webview_window("hud") {
         w.close().map_err(|e| AppError::Launch(e.to_string()))?;
         return Ok(false);

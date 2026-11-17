@@ -84,7 +84,10 @@ function useTheme() {
     document.documentElement.dataset.motion = ap.reduceMotion ? "reduced" : "full";
     document.documentElement.dataset.density = ap.compact ? "compact" : "normal";
     // Text size scales the whole interface so layouts stay proportional.
-    document.documentElement.style.setProperty("zoom", String((ap.textScale || 100) / 100));
+    const zoom = String((ap.textScale || 100) / 100);
+    document.documentElement.style.setProperty("zoom", zoom);
+    // Viewport units are scaled by zoom too; the shell divides by it to stay window-sized.
+    document.documentElement.style.setProperty("--zoom", zoom);
   }, [ap]);
   useEffect(() => {
     const load = () => backend.backgroundData().then(setBg).catch(() => setBg(null));

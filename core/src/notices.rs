@@ -25,6 +25,9 @@ pub struct Notice {
     pub body: String,
     #[serde(default)]
     pub read: bool,
+    /// Identity of the event (e.g. the server ID for a game join), used to drop repeats.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub key: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
@@ -39,10 +42,22 @@ impl NoticesFile {
     pub fn push(&mut self, at: u64, kind: NoticeKind, title: &str, body: &str) -> Notice {
         let id = self.items.iter().map(|n| n.id).max().unwrap_or(0) + 1;
         let clip = |s: &str, n: usize| s.trim().chars().take(n).collect::<String>();
-        let n = Notice { id, at, kind, title: clip(title, 120), body: clip(body, 500), read: false };
+        let n = Notice { id, at, kind, title: clip(title, 120), body: clip(body, 500), read: false, key: None };
         self.items.insert(0, n.clone());
         self.items.truncate(MAX_NOTICES);
         n
+    }
+
+    /// Like `push`, but does nothing if a notice with the same key is already in the log
+    /// (the same game join seen again after a restart or a retried lookup).
+    pub fn push_once(&mut self, key: &str, at: u64, kind: NoticeKind, title: &str, body: &str) -> Option<Notice> {
+        if self.items.iter().any(|n| n.key.as_deref() == Some(key)) {
+            return None;
+        }
+        let mut n = self.push(at, kind, title, body);
+        n.key = Some(key.to_owned());
+        self.items[0].key = n.key.clone();
+        Some(n)
     }
 
     pub fn unread(&self) -> usize {
@@ -73,5 +88,16 @@ mod tests {
         assert_eq!(n.title, "x");
         assert_eq!(n.body.len(), 500);
         assert!(n.id > f.items[1].id, "ids keep increasing");
+    }
+
+    #[test]
+    fn push_once_drops_repeats() {
+        let mut f = NoticesFile::default();
+        assert!(f.push_once("game:abc", 1, NoticeKind::Game, "Joined a game", "Place 1").is_some());
+        assert!(f.push_once("game:abc", 2, NoticeKind::Game, "Joined a game", "Real name").is_none());
+        assert!(f.push_once("game:def", 3, NoticeKind::Game, "Joined a game", "Other").is_some());
+        assert_eq!(f.items.len(), 2);
+        let back: NoticesFile = serde_json::from_str(&serde_json::to_string(&f).unwrap()).unwrap();
+        assert_eq!(back.items[1].key.as_deref(), Some("game:abc"), "keys survive a restart");
     }
 }

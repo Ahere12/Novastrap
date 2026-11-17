@@ -49,7 +49,7 @@ code { font-family: "Cascadia Code", Consolas, monospace; font-size: 12px; backg
 :root[data-motion="reduced"] * { animation: none !important; transition: none !important; }
 
 /* Shell: section rail + topbar with tabs */
-.shell { display: grid; grid-template-columns: 250px 1fr; height: 100vh; position: relative; }
+.shell { display: grid; grid-template-columns: 250px 1fr; height: calc(100vh / var(--zoom, 1)); position: relative; }
 .bg-image { position: fixed; inset: 0; background-size: cover; background-position: center; z-index: 0; pointer-events: none; }
 .bg-image > div { position: absolute; inset: 0; }
 .rail, .main { position: relative; z-index: 1; }
