@@ -1,0 +1,20 @@
+[package]
+name = "novastrap-core"
+version = "0.1.0"
+description = "Novastrap services: Roblox detection, deployment, install and launch logic (no UI dependencies)"
+license = "MIT"
+edition = "2024"
+
+[dependencies]
+log = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.55"
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
