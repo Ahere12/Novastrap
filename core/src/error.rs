@@ -14,6 +14,14 @@ pub enum AppError {
     Io(#[from] std::io::Error),
     #[error("{0}")]
     Unsupported(String),
+    #[error("{0}")]
+    InvalidInput(String),
+    #[error("{0}")]
+    Verification(String),
+    #[error("{0}")]
+    Launch(String),
+    #[error("{0}")]
+    Busy(String),
 }
 
 impl AppError {
@@ -24,6 +32,10 @@ impl AppError {
             AppError::UpstreamChanged(_) => "upstream_changed",
             AppError::Io(_) => "io",
             AppError::Unsupported(_) => "unsupported",
+            AppError::InvalidInput(_) => "invalid_input",
+            AppError::Verification(_) => "verification",
+            AppError::Launch(_) => "launch",
+            AppError::Busy(_) => "busy",
         }
     }
 

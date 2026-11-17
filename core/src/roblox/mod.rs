@@ -2,6 +2,8 @@
 
 pub mod deployment;
 pub mod detect;
+pub mod install;
+pub mod launch;
 
 use crate::error::{AppError, ErrorInfo};
 use deployment::ClientVersion;

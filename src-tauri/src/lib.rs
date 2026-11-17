@@ -5,6 +5,8 @@ use novastrap_core::{reqwest, roblox};
 /// Shared backend state, managed by Tauri.
 pub struct AppState {
     pub http: reqwest::Client,
+    /// Set while an install/update runs, so only one can run at a time.
+    pub installing: std::sync::atomic::AtomicBool,
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -21,8 +23,13 @@ pub fn run() {
                 .build(),
         )
         .plugin(tauri_plugin_opener::init())
-        .manage(AppState { http })
-        .invoke_handler(tauri::generate_handler![commands::roblox_status, commands::app_info])
+        .manage(AppState { http, installing: Default::default() })
+        .invoke_handler(tauri::generate_handler![
+            commands::roblox_status,
+            commands::install_roblox,
+            commands::launch_roblox,
+            commands::app_info
+        ])
         .run(tauri::generate_context!())
         .expect("error while running Novastrap");
 }

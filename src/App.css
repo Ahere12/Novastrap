@@ -104,3 +104,28 @@ p { margin: 0; line-height: 1.55; }
 }
 .skeleton.short { width: 40%; }
 @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+/* Home hero: play / install / join */
+.hero { gap: 14px; }
+.hero-actions { display: flex; gap: 10px; align-items: center; }
+.btn-primary {
+  border: 0; color: #0b0c11; font-weight: 700;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  box-shadow: 0 6px 24px -8px rgba(139,123,255,.6);
+}
+.btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
+.btn-lg { padding: 12px 28px; font-size: 15px; }
+.join { display: flex; gap: 8px; }
+.input {
+  flex: 1; min-width: 0; padding: 9px 12px; border-radius: 10px;
+  border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit;
+  transition: border-color 160ms var(--ease);
+}
+.input:focus { outline: none; border-color: var(--accent); }
+.input:disabled { opacity: .6; }
+.ok { color: var(--ok); }
+.progress-block { display: flex; flex-direction: column; gap: 8px; }
+.progress { height: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.progress > div { height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width 200ms var(--ease); }
+.progress.indeterminate > div { width: 35%; animation: indet 1.1s var(--ease) infinite; }
+@keyframes indet { from { transform: translateX(-100%); } to { transform: translateX(300%); } }

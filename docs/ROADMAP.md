@@ -44,11 +44,12 @@ Every phase ends with the app building, the tests passing, and the features **re
 - [ ] Page transitions and loading screens; error and empty states
 - [ ] Logo and app icon
 
-### Phase 4: Install and launch
-- [ ] Download the official installer, verify its Authenticode signature, run it, show progress
-- [ ] Launch through the deep link; Quick Play (last game)
+### Phase 4: Install and launch (done early: priority 1 in the expanded brief)
+- [x] Download the official installer, verify its Authenticode signature, run it, show progress
+- [x] Launch the app; join by place ID or link through the `roblox://experiences/start` argument
+- [ ] Quick Play (last game), which needs the activity history
 - [ ] Opt-in protocol takeover, with saved restore
-- [ ] Interrupted-operation recovery; error messages for each failure kind
+- [x] Interrupted-operation recovery; error messages for each failure kind
 
 ### Phase 5: Discover and Servers
 - [ ] Discover sorts and search (adapter), game detail page
@@ -93,3 +94,10 @@ Every phase ends with the app building, the tests passing, and the features **re
 - `cargo run --example status` on the dev PC detected the installed versions and the official handler, and reported "up to date".
 - `npm run build` (tsc + vite) passes. The debug app built with the GNU toolchain and launched, and the shell rendered.
 - Not yet verified: an MSVC build (Visual Studio Build Tools aren't installed on the dev PC).
+
+## Module 1 verification log (2026-11-16)
+- `core` unit tests: 19 passed (launch-target parsing, job-ID validation, executable choice, installer URL, signature rules, partial cleanup, unsigned file rejected).
+- Live test: downloaded the current `RobloxPlayerInstaller.exe` (13.8 MB) from setup.rbxcdn.com, and the signature verified as Roblox Corporation. **The installer itself was not executed** during testing, because Roblox was already installed and up to date on the dev PC.
+- Live test: `cargo run --example launch` started `RobloxPlayerBeta.exe` from the up-to-date version folder, and the Roblox window opened and stayed running.
+- Not live-tested: joining a specific place (it would join a real game on the developer's account). The argument format matches what the registered protocol handler passes to the client.
+- Known quirk: Rust on Windows passes inheritable handles to children. Launching from a console pipe keeps that pipe open while Roblox runs. The GUI app has no console pipes, so it isn't affected.

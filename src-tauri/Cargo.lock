@@ -2307,6 +2307,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.21",
+ "tokio",
  "winreg 0.55.0",
 ]
 
