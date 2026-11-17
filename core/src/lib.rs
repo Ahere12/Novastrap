@@ -9,6 +9,7 @@ pub mod discover;
 pub mod error;
 pub mod favorites;
 pub mod instances;
+pub mod links;
 pub mod mods;
 pub mod performance;
 pub mod roblox;
