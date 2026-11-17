@@ -1,0 +1,60 @@
+# Builds the Windows installers and publishes a GitHub release when a version tag (v*) is pushed.
+# Release notes come from docs/release-notes/<tag>.md.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            core
+            src-tauri
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Core tests
+        run: cargo test --manifest-path core/Cargo.toml --lib
+
+      - name: Typecheck frontend
+        run: npx tsc --noEmit -p .
+
+      - name: Check release notes exist
+        shell: pwsh
+        run: |
+          $notes = "docs/release-notes/${{ github.ref_name }}.md"
+          if (-not (Test-Path $notes)) { throw "Missing $notes" }
+
+      - name: Build installers and create the release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: Novastrap ${{ github.ref_name }}
+          releaseBody: See the notes below.
+          releaseDraft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+
+      - name: Attach release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${{ github.ref_name }}" --notes-file "docs/release-notes/${{ github.ref_name }}.md"
