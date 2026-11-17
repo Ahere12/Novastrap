@@ -320,7 +320,7 @@ input[type="color"] { width: 34px; height: 30px; border: 0; background: none; cu
 .hud-idle { padding: 20px 0; }
 
 /* Theme picker (Customize) */
-.theme-picks { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.theme-picks { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
 .theme-pick {
   display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 10px; text-align: left; cursor: pointer;
   font: inherit; color: var(--text); background: var(--surface-2); border: 2px solid var(--border); border-radius: 6px;
@@ -507,3 +507,151 @@ input[type="color"] { width: 34px; height: 30px; border: 0; background: none; cu
 [data-theme="classic"] .theme-pick { background: #fff; border-color: #c9ced6; }
 [data-theme="classic"] .theme-pick.on { border-color: #3b7fd6; background: #eef4fc; }
 [data-theme="classic"] .swatch.on { border-color: #222; }
+
+/* ===================================================================================
+   Legacy 2019 theme: the flat light style of Roblox's 2017-2019 website.
+   Palette taken from the colors used by the Roblox Legacy Old Theme userstyle
+   (github.com/tersiswilvin/Roblox-Legacy-Old-Theme); no CSS or images are copied.
+   =================================================================================== */
+.theme-pick.legacy .theme-swatch i:nth-child(1) { background: #0074bd; }
+.theme-pick.legacy .theme-swatch i:nth-child(2) { background: #e3e3e3; }
+.theme-pick.legacy .theme-swatch i:nth-child(3) { background: #02b757; }
+
+:root[data-theme="legacy"] {
+  --bg: #e3e3e3;
+  --rail: #f2f2f2;
+  --topbar: #0074bd;
+  --surface: #ffffff;
+  --surface-2: #f2f2f2;
+  --surface-3: #e3e3e3;
+  --border: #b8b8b8;
+  --text: #191919;
+  --muted: #757575;
+  --accent: #00a2ff;
+  --accent-2: #00a2ff;
+  --play: #02b757;
+  --play-hi: #02b757;
+  --play-lo: #018a41;
+  --ok: #02b757;
+  --warn: #f68802;
+  --danger: #d86868;
+  --radius: 3px;
+  --font: "Source Sans Pro", "Segoe UI", Arial, sans-serif;
+  color-scheme: light;
+  font-size: 14px;
+}
+:root[data-theme="legacy"] body { background: var(--bg); }
+[data-theme="legacy"] h1, [data-theme="legacy"] h2 { font-weight: 700; letter-spacing: 0; }
+[data-theme="legacy"] h3 { color: #191919; text-transform: none; letter-spacing: 0; font-size: 14px; }
+[data-theme="legacy"] code { background: #f2f2f2; border-radius: 2px; }
+
+/* Left nav: the 2019 site's light left navigation */
+[data-theme="legacy"] .rail { background: var(--rail); border-right: 1px solid #b8b8b8; }
+[data-theme="legacy"] .rail-account { background: #fff; border-bottom: 1px solid #e3e3e3; }
+[data-theme="legacy"] .rail-account:hover { background: #fafafa; }
+[data-theme="legacy"] .rail-list { padding: 6px 0; gap: 0; }
+[data-theme="legacy"] .rail-item { color: #191919; padding: 8px 16px; }
+[data-theme="legacy"] .rail-item:hover { background: #e3e3e3; color: #191919; }
+[data-theme="legacy"] .rail-item.active { background: #fff; color: #191919; }
+[data-theme="legacy"] .rail-item.active::before { background: #00a2ff; }
+[data-theme="legacy"] .rail-icon { width: 32px; height: 32px; background: none; color: #191919; }
+[data-theme="legacy"] .rail-text span { color: #757575; }
+[data-theme="legacy"] .rail-foot { border-top: 1px solid #e3e3e3; }
+[data-theme="legacy"] .rail-version { color: #8a8a8a; }
+
+/* Blue header bar */
+[data-theme="legacy"] .topbar { background: #0074bd; border-bottom: 0; padding: 12px 24px 0; gap: 6px; }
+[data-theme="legacy"] .topbar-title { color: #fff; font-size: 20px; }
+[data-theme="legacy"] .topbar-tabs { gap: 0; }
+[data-theme="legacy"] .top-tab {
+  color: rgba(255,255,255,.8); text-transform: none; letter-spacing: 0; font-size: 15px; font-weight: 600;
+  padding: 8px 18px 10px; border-bottom: 4px solid transparent;
+}
+[data-theme="legacy"] .top-tab:hover { color: #fff; background: rgba(255,255,255,.1); }
+[data-theme="legacy"] .top-tab.active { color: #fff; border-bottom-color: #fff; }
+[data-theme="legacy"] .content { padding: 20px 24px 40px; }
+[data-theme="legacy"] .content.content-play { padding: 0; }
+[data-theme="legacy"] .page-header h1 { font-size: 22px; }
+
+/* Flat white cards with a title above the content */
+[data-theme="legacy"] .card { background: #fff; border: 0; border-radius: 3px; box-shadow: 0 1px 4px rgba(25,25,25,.15); padding: 15px; }
+[data-theme="legacy"] .card-title h2 { font-size: 18px; font-weight: 400; }
+
+/* Flat buttons: green primary, white secondary with a grey border */
+[data-theme="legacy"] .btn { border-radius: 3px; border: 1px solid #b8b8b8; background: #fff; color: #191919; font-weight: 500; }
+[data-theme="legacy"] .btn:hover:not(:disabled) { border-color: #191919; background: #fff; }
+[data-theme="legacy"] .btn-primary, [data-theme="legacy"] .btn-primary:hover:not(:disabled) {
+  background: #02b757; border: 1px solid #02b757; color: #fff; box-shadow: none; text-shadow: none;
+}
+[data-theme="legacy"] .btn-primary:hover:not(:disabled) { background: #3fc679; border-color: #3fc679; filter: none; }
+[data-theme="legacy"] .btn.danger:hover:not(:disabled) { border-color: #d86868; color: #d86868; }
+[data-theme="legacy"] .link { color: #00a2ff; text-decoration: none; }
+[data-theme="legacy"] .link:hover { text-decoration: underline; }
+[data-theme="legacy"] .btn-ghost { color: #fff; background: rgba(25,25,25,.5); border-color: #fff; }
+
+/* Inputs, chips, tabs */
+[data-theme="legacy"] .input { background: #fff; border: 1px solid #b8b8b8; border-radius: 3px; color: #191919; }
+[data-theme="legacy"] .input:focus { border-color: #00a2ff; }
+[data-theme="legacy"] .switch { background: #b8b8b8; }
+[data-theme="legacy"] .toggle input:checked + .switch { background: #02b757; }
+[data-theme="legacy"] .chip { background: #fff; border-color: #b8b8b8; color: #191919; border-radius: 3px; }
+[data-theme="legacy"] .chip.on, [data-theme="legacy"] .chip:hover { border-color: #00a2ff; color: #00a2ff; }
+[data-theme="legacy"] .tabs { border-bottom: 1px solid #e3e3e3; background: #fff; border-radius: 3px 3px 0 0; }
+[data-theme="legacy"] .tab { color: #191919; padding: 10px 16px; border-bottom: 4px solid transparent; }
+[data-theme="legacy"] .tab.active { color: #191919; border-bottom-color: #00a2ff; }
+[data-theme="legacy"] .flag-group { border-color: #e3e3e3; border-radius: 3px; }
+[data-theme="legacy"] .source-note { border-color: #b8b8b8; border-radius: 3px; background: #fff; }
+
+/* Badges, lists, tables */
+[data-theme="legacy"] .badge { border-radius: 3px; }
+[data-theme="legacy"] .badge-ok { color: #018a41; background: #e1f6ea; }
+[data-theme="legacy"] .badge-warn { color: #b05f00; background: #fdf0df; }
+[data-theme="legacy"] .badge-info { color: #0074bd; background: #e0f3ff; }
+[data-theme="legacy"] .badge-muted { color: #757575; background: #f2f2f2; }
+[data-theme="legacy"] .error-box { background: #fbeaea; border-radius: 3px; color: #b33c3c; }
+[data-theme="legacy"] .list > li, [data-theme="legacy"] .account-list li { background: #fff; border: 1px solid #e3e3e3; border-radius: 3px; }
+[data-theme="legacy"] .list > li.active, [data-theme="legacy"] .account-list li.active { border-color: #00a2ff; }
+[data-theme="legacy"] .table th { color: #757575; border-bottom: 1px solid #e3e3e3; }
+[data-theme="legacy"] .table td { border-bottom: 1px solid #f2f2f2; }
+
+/* Game and item cards: white card under the thumbnail */
+[data-theme="legacy"] .game-tile { background: #fff; border-radius: 3px; box-shadow: 0 1px 4px rgba(25,25,25,.15); padding-bottom: 6px; overflow: hidden; }
+[data-theme="legacy"] .game-tile .game-icon { border-radius: 0; }
+[data-theme="legacy"] .game-tile .game-name, [data-theme="legacy"] .game-tile .game-meta { padding: 0 6px; }
+[data-theme="legacy"] .game-tile:hover { box-shadow: 0 2px 8px rgba(25,25,25,.3); }
+[data-theme="legacy"] .game-tile:hover .game-icon { transform: none; box-shadow: none; }
+[data-theme="legacy"] .item-card { background: #fff; border: 0; border-radius: 3px; box-shadow: 0 1px 4px rgba(25,25,25,.15); }
+[data-theme="legacy"] .item-card:hover { box-shadow: 0 2px 8px rgba(25,25,25,.3); }
+[data-theme="legacy"] .item-thumb, [data-theme="legacy"] .item-img, [data-theme="legacy"] .avatar-render { background: #f2f2f2; border-radius: 0; }
+[data-theme="legacy"] .description { color: #191919; }
+[data-theme="legacy"] .log { background: #f2f2f2; border-color: #e3e3e3; color: #191919; }
+[data-theme="legacy"] .skeleton { background: linear-gradient(90deg, #e3e3e3 0%, #f2f2f2 50%, #e3e3e3 100%); background-size: 200% 100%; }
+[data-theme="legacy"] .img-ph { background: #e3e3e3; }
+[data-theme="legacy"] .progress { background: #e3e3e3; }
+[data-theme="legacy"] .progress > div, [data-theme="legacy"] .bar > div { background: #02b757; }
+
+/* Modal */
+[data-theme="legacy"] .modal-backdrop { background: rgba(25,25,25,.6); backdrop-filter: none; }
+[data-theme="legacy"] .modal { background: #fff; border: 0; border-radius: 3px; box-shadow: 0 4px 20px rgba(0,0,0,.3); }
+[data-theme="legacy"] .modal-close { color: #191919; }
+[data-theme="legacy"] .gd-shot, [data-theme="legacy"] .gd-icon { border-radius: 0; }
+
+/* Toasts: the site's alert bar */
+[data-theme="legacy"] .toast { background: #02b757; color: #fff; border: 0; border-radius: 3px; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+[data-theme="legacy"] .toast.bad { background: #d86868; }
+
+/* Play screen */
+[data-theme="legacy"] .play-hero.art { background: linear-gradient(135deg, #00a2ff, #0074bd 70%); }
+[data-theme="legacy"] .play-hero-shade { background: linear-gradient(180deg, transparent 40%, rgba(25,25,25,.65)); }
+[data-theme="legacy"] .play-bar { background: #fff; border-top: 0; border-bottom: 1px solid #e3e3e3; box-shadow: 0 1px 4px rgba(25,25,25,.15); }
+[data-theme="legacy"] .play-bar-label { color: #757575; }
+[data-theme="legacy"] .play-btn {
+  border-radius: 3px; background: #02b757; box-shadow: none; text-transform: none; letter-spacing: 0;
+  font-size: 22px; font-weight: 700; padding: 12px 48px;
+}
+[data-theme="legacy"] .play-btn:hover:not(:disabled) { background: #3fc679; filter: none; }
+[data-theme="legacy"] .play-btn:active:not(:disabled) { transform: none; box-shadow: none; background: #018a41; }
+[data-theme="legacy"] .play-status { background: #fff; border-bottom: 1px solid #e3e3e3; }
+[data-theme="legacy"] .theme-pick { background: #fff; border-color: #e3e3e3; }
+[data-theme="legacy"] .theme-pick.on { border-color: #00a2ff; }
+[data-theme="legacy"] .swatch.on { border-color: #191919; }

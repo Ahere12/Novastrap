@@ -57,8 +57,8 @@ const FONT_STACK: Record<string, string> = {
   georgia: `Georgia, serif`,
 };
 
-/** "launcher" is the dark theme; anything else (including the legacy "nova") is Classic. */
-export const themeOf = (t: string) => (t === "launcher" ? "launcher" : "classic");
+/** Theme to apply; anything unknown (including the old internal name "nova") is the default, Legacy 2019. */
+export const themeOf = (t: string) => (t === "launcher" || t === "classic" ? t : "legacy");
 
 function Icon({ d, size = 22 }: { d: string; size?: number }) {
   return (

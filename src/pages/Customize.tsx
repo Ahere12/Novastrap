@@ -13,6 +13,7 @@ export const FONTS: { id: string; label: string }[] = [
 ];
 
 export const THEMES: { id: string; label: string; hint: string }[] = [
+  { id: "legacy", label: "Legacy 2019", hint: "Flat light style of the 2017–2019 Roblox website: blue header, white cards, green buttons" },
   { id: "classic", label: "Classic", hint: "Light, early-web look: blue header, glossy buttons, boxed panels" },
   { id: "launcher", label: "Launcher", hint: "Dark game-launcher look" },
 ];
@@ -37,7 +38,7 @@ export function Customize() {
     try {
       const t = JSON.parse(await f.text());
       if (t.format !== "novastrap-theme-1") throw new Error();
-      await setAp({ theme: t.theme === "launcher" ? "launcher" : "classic", accent: t.accent, font: t.font, backgroundDim: t.backgroundDim, reduceMotion: !!t.reduceMotion, uiSounds: !!t.uiSounds });
+      await setAp({ theme: t.theme === "launcher" || t.theme === "classic" ? t.theme : "legacy", accent: t.accent, font: t.font, backgroundDim: t.backgroundDim, reduceMotion: !!t.reduceMotion, uiSounds: !!t.uiSounds });
       action.setMsg({ ok: true, text: "Theme imported" });
     } catch { action.setMsg({ ok: false, text: "That isn't a Novastrap theme file" }); }
   };
@@ -54,7 +55,7 @@ export function Customize() {
           <Field label="Style">
             <div className="theme-picks">
               {THEMES.map((t) => {
-                const on = (ap.theme === "launcher" ? "launcher" : "classic") === t.id;
+                const on = (ap.theme === "launcher" || ap.theme === "classic" ? ap.theme : "legacy") === t.id;
                 return (
                   <button key={t.id} className={`theme-pick ${t.id} ${on ? "on" : ""}`} aria-pressed={on} onClick={() => setAp({ theme: t.id })}>
                     <span className="theme-swatch" aria-hidden="true"><i /><i /><i /></span>

@@ -58,12 +58,12 @@ impl Settings {
 }
 
 /// Launcher fonts (system-installed families only; nothing is downloaded).
-/// "system" means the theme's own font (Verdana for Classic, Segoe UI for Launcher).
+/// "system" means the theme's own font (Source Sans Pro/Segoe UI for Legacy 2019, Verdana for Classic, Segoe UI for Launcher).
 pub const FONTS: &[&str] = &["system", "segoe", "verdana", "bahnschrift", "consolas", "georgia"];
 
 /// Launcher themes. "nova" is the name the dark theme had before themes were selectable; it is
-/// still accepted in saved files and shown as Classic, since nobody could have picked it.
-pub const THEMES: &[&str] = &["classic", "launcher", "nova"];
+/// still accepted in saved files and shown as the default (Legacy 2019), since nobody could have picked it.
+pub const THEMES: &[&str] = &["legacy", "classic", "launcher", "nova"];
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default, rename_all = "camelCase")]
@@ -96,7 +96,7 @@ pub struct Appearance {
 impl Default for Appearance {
     fn default() -> Self {
         Appearance {
-            theme: "classic".into(),
+            theme: "legacy".into(),
             accent: "#8b7bff".into(),
             background: None,
             background_dim: 70,
