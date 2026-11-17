@@ -137,7 +137,7 @@ pub fn background_data(state: State<'_, AppState>) -> Option<String> {
 
 #[tauri::command]
 pub async fn catalog_search(state: State<'_, AppState>, keyword: String, category: Category, sort: SortBy, cursor: Option<String>) -> AppResult<CatalogPage> {
-    catalog::search(&state.api, &keyword, category, sort, cursor.as_deref()).await
+    catalog::search(&state.api, &keyword, category, sort, cursor.as_deref()).await.inspect_err(|e| log::error!("catalog search failed: {e}"))
 }
 
 #[tauri::command]
@@ -150,5 +150,5 @@ pub fn toggle_favorite_item(state: State<'_, AppState>, mut item: FavItem) -> Ap
 
 #[tauri::command]
 pub async fn trade_values(state: State<'_, AppState>) -> AppResult<ValueTable> {
-    trading::values(&state.api).await
+    trading::values(&state.api).await.inspect_err(|e| log::error!("trade values failed: {e}"))
 }

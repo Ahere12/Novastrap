@@ -8,6 +8,17 @@ use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_notification::NotificationExt;
 
 pub fn spawn(app: AppHandle) {
+    let startup = app.clone();
+    tauri::async_runtime::spawn(async move {
+        // One check at startup for the "update available" notification.
+        let state = startup.state::<AppState>();
+        if state.settings.get().notifications.update_available {
+            let st = novastrap_core::roblox::status(state.api.client()).await;
+            if matches!(st.update, novastrap_core::roblox::UpdateState::UpdateAvailable) {
+                let _ = startup.notification().builder().title("Roblox update available").body("Open Novastrap's Home page to update.").show();
+            }
+        }
+    });
     tauri::async_runtime::spawn(async move {
         let mut tail = LogTail::default();
         let mut tracker = Tracker::default();

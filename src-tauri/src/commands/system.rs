@@ -59,7 +59,8 @@ pub fn hud_toggle(app: tauri::AppHandle) -> AppResult<bool> {
         w.close().map_err(|e| AppError::Launch(e.to_string()))?;
         return Ok(false);
     }
-    WebviewWindowBuilder::new(&app, "hud", WebviewUrl::App("index.html#hud".into()))
+    WebviewWindowBuilder::new(&app, "hud", WebviewUrl::App("index.html".into()))
+        .initialization_script("window.__NOVASTRAP_WINDOW__ = 'hud';")
         .title("Novastrap HUD")
         .inner_size(340.0, 420.0)
         .min_inner_size(280.0, 300.0)

@@ -12,7 +12,6 @@ pub struct Settings {
     pub instances: Instances,
     pub integrations: Integrations,
     pub notifications: Notifications,
-    pub privacy: Privacy,
 }
 
 impl Default for Settings {
@@ -24,7 +23,6 @@ impl Default for Settings {
             instances: Instances::default(),
             integrations: Integrations::default(),
             notifications: Notifications::default(),
-            privacy: Privacy::default(),
         }
     }
 }
@@ -59,13 +57,19 @@ impl Settings {
 /// Launcher fonts (system-installed families only; nothing is downloaded).
 pub const FONTS: &[&str] = &["system", "segoe", "bahnschrift", "consolas", "georgia"];
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct General {
     /// Minimize the launcher after starting Roblox.
     pub minimize_on_launch: bool,
-    /// Watch Roblox logs for game activity (history, playtime, HUD, Discord).
+    /// Watch Roblox's local logs for game activity (history, playtime, HUD, Discord).
     pub track_activity: bool,
+}
+
+impl Default for General {
+    fn default() -> Self {
+        General { minimize_on_launch: false, track_activity: true }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -149,13 +153,6 @@ impl Default for Notifications {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
-#[serde(default, rename_all = "camelCase")]
-pub struct Privacy {
-    /// Look up the joined server's region from its IP (sends the IP to ipinfo.io).
-    pub server_location_lookup: bool,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -164,6 +161,7 @@ mod tests {
     fn old_files_load_with_defaults() {
         let s: Settings = serde_json::from_str(r#"{"general":{"minimizeOnLaunch":true}}"#).unwrap();
         assert!(s.general.minimize_on_launch);
+        assert!(s.general.track_activity, "missing fields take the struct default");
         assert_eq!(s.appearance.accent, "#8b7bff");
         assert!(s.integrations.discord_show_game);
     }

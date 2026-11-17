@@ -1,125 +1,127 @@
 # Feature completion checklist
 
-Legend: ✅ implemented and tested · 🟡 partially implemented · ⬜ planned · ⛔ not possible within our rules (the reason and the alternative are given)
+Legend:
+- ✅ **implemented**: backend tested (unit tests, plus a live test against the real service where noted), and the UI is built
+- 🟡 **partial**: works, with a stated gap
+- ⬜ **planned**
+- ⛔ **not possible within our rules** (the reason and the alternative are given)
 
-**The rules that decide feasibility:** no Roblox session cookie (`.ROBLOSECURITY`), no passwords, no code injection, no Hyperion interaction, no modifying the executable, and only supported or clearly identified data sources. Many Roblox web APIs (friends' presence, trades, avatar editing, purchases, inventory) **only work with the session cookie**. Roblox's official OAuth 2.0 gives a much narrower set of scopes. Where a feature needs the cookie, it's marked ⛔ and gets a cookie-free alternative.
+**The rules that decide feasibility:** no Roblox session cookie, no passwords, no injection, no Hyperion interaction, no modifying executables, and only supported or clearly attributed data. Many Roblox web APIs (friends, presence, trades, avatar editing, purchases) only work with the session cookie, so features needing them are marked ⛔ and get the alternative shown.
 
-Build order follows the requested priority. Each module is built only after checking what already exists.
+**UI verification status (2026-11-16):** every page compiles under strict TypeScript and the app runs. The shell, navigation, Accounts and the Discover loading state were checked in the running app. The other pages haven't been looked at on screen yet: testing stopped when the developer started playing Roblox. Network commands now log their timing to the app log for the next check.
+
+Tests: `core` has **68 unit tests** plus **10 live tests** (`cargo test -- --ignored`) against Roblox, Rolimons, Windows Credential Manager and real client logs.
 
 ---
 
 ## 1. Core launcher and installation
 | Feature | Status | Notes |
 |---|---|---|
-| Detect installed versions | ✅ | `core/src/roblox/detect.rs` |
-| Detect the protocol handler owner | ✅ | Official, Bloxstrap, Fishstrap, Novastrap, other |
-| Latest-version check with fallback | ✅ | `deployment.rs`, validated response |
-| Install / update via the official installer | ✅ | Downloads `RobloxPlayerInstaller.exe` from `setup.rbxcdn.com`. **Authenticode-verified (signer must be Roblox Corporation)** before it runs. Progress is shown in the UI |
-| Interrupted-download recovery | ✅ | Downloads go to `.partial` files that are never executed. Leftovers are cleaned at the next install |
-| Launch the Roblox app | ✅ | Runs the installed `RobloxPlayerBeta.exe` unmodified |
-| Join an experience by place ID / link | ✅ | `roblox://experiences/start?placeId=…` passed to the client, the same way the registered handler does it |
-| Join a specific server (job ID) | ✅ | `gameInstanceId`. The UI arrives with the Server Browser (module 5) |
-| Opt-in protocol takeover | ⬜ | Phase 4b: register Novastrap as the handler, with a saved restore |
-| Managed installs / version pinning | ⬜ | Bloxstrap-style manifest plus MD5 into our own folder (module 6) |
+| Detect installs, handler, latest version | ✅ live | |
+| Install/update via the official signed installer | ✅ live | The download and Roblox Corporation signature check were tested live. The installer itself wasn't run during testing (Roblox was already up to date) |
+| Launch the app; join by place ID, link or server | ✅ live | The app launch was tested live. Joining a place/server uses the same argument format as Roblox's protocol handler |
+| Applies the active performance profile and mods before each launch | ✅ | |
+| Interrupted-download recovery | ✅ | |
+| Startup notification when a Roblox update is available | ✅ | |
+| Opt-in protocol takeover | ⬜ | |
 
 ## 2. Account manager
 | Feature | Status | Notes |
 |---|---|---|
-| Sign in with Roblox (OAuth 2.0 + PKCE) | ⬜ | Official flow. Needs a client ID registered at create.roblox.com |
-| Profile: username, display name, avatar, ID | ⬜ | OAuth `openid profile` plus public users and thumbnails APIs |
-| Multiple saved accounts and switching | ⬜ | Switches the **launcher** identity |
-| Tokens in Windows Credential Manager | ⬜ | `keyring` crate. Never written to disk or logs |
-| Switching the account the **Roblox client** uses | ⛔ | Needs the session cookie. Alternative: Novastrap shows which account the client last used (read from the client log) and links to Roblox's own account switcher |
+| Sign in with Roblox (OAuth 2.0 + PKCE, loopback redirect) | 🟡 | Fully implemented and unit-tested, including a loopback round trip. **Not run end-to-end**: it needs your OAuth client ID from create.roblox.com |
+| Tokens in Windows Credential Manager, refresh, revoke on removal | ✅ live | Credential Manager round trip tested live |
+| Saved profiles by username (public data), avatar, display name, ID | ✅ live | |
+| Multiple accounts, switching, recently used, session status | ✅ | Status is Signed in / Session expired / Profile only |
+| Switching the account the **Roblox client** uses | ⛔ | Needs the session cookie. The client keeps its own login |
 
 ## 3. Instance manager
 | Feature | Status | Notes |
 |---|---|---|
-| Multiple simultaneous Roblox windows | ⬜ | Opt-in. Works by holding Roblox's single-instance mutex (the Fishstrap/Fedestrap technique). It doesn't touch the client, but Roblox doesn't officially support it, so the UI says so |
-| Instance naming, status, start/close individual instances | ⬜ | Process tracking per launched PID |
-| Saved instance profiles (FastFlags + launch target) | ⬜ | Profiles from module 6 |
-| **Separate account per instance** | ⛔ | Each instance would need its own session cookie. All instances use the account the Roblox client is signed in with |
-| Independent cache directories | ⛔ | The client hard-codes `%LOCALAPPDATA%\Roblox`. No supported override exists |
+| Saved instance profiles (name, launch target, performance profile) | ✅ | |
+| Start an instance; status, memory, uptime; close a client | ✅ | Closing refuses any process that isn't `RobloxPlayerBeta.exe` |
+| Several clients at once | ⛔ (tested) | Both known techniques (holding `ROBLOX_singletonMutex`, and squatting `ROBLOX_singletonEvent` with a mutex) were tried live on client 0.747. The second client handed off to the first both times, so the code was removed rather than shipped broken |
+| Separate account per instance | ⛔ | Needs a session cookie per instance |
+| Independent cache directories | ⛔ | The client hard-codes `%LOCALAPPDATA%\Roblox` |
 
 ## 4. Game discovery
 | Feature | Status | Notes |
 |---|---|---|
-| Search, trending, popular, categories | ⬜ | explore-api / search-api. Undocumented, so placed behind a validating adapter |
-| Details, descriptions, thumbnails, player counts | ⬜ | games / thumbnails APIs (documented) |
-| Favorites | ⬜ | Local favorites (writing to Roblox favorites needs the cookie ⛔) |
-| Recommendations | ⬜ | Local, built from your play history and the genres of games you favorite. Roblox's personalized recommendations need the cookie |
+| Trending, popular and other Roblox home sorts | ✅ live | explore-api (undocumented, strictly validated). Sponsored entries are removed |
+| Search | ✅ live | omni-search |
+| Categories | ✅ | Genre filter built from the genres Roblox returns |
+| Detail page: description, screenshots, icon, players, visits, rating, favorites, updated date | ✅ live | |
+| Favorites | ✅ | Local |
+| Recommendations | ✅ | Local, by genre affinity from your favorites and play history. It says so when there's no data yet |
 
 ## 5. Server browser
 | Feature | Status | Notes |
 |---|---|---|
-| List public servers, players, capacity, pagination, refresh | ⬜ | `games.roblox.com/v1/games/{placeId}/servers/Public` |
-| Join a selected server | ✅ (backend) | Launch target with `gameInstanceId` is done. The page is next |
-| Favorite servers | ⬜ | Local, by job ID. Expires when the server closes |
-| Ping | 🟡 | Roblox returns a `ping` field per server, measured from Roblox's side. It's shown as "reported ping" |
-| Region before joining | ⛔ | Not in the API. Shown after joining, from the log IP, as an opt-in |
-| Join friends | ⛔ | Friend presence with game IDs needs the cookie. Alternative: Roblox's own "Join" from the Roblox app |
+| Public servers: players, capacity, server FPS, ping, sorting, pagination, refresh | ✅ live | Ping is labelled "reported by Roblox" (it's server-side, not your own latency) |
+| Join a selected server | ✅ | |
+| Favorite servers | ✅ | Local. Servers expire when empty |
+| Region before joining | ⛔ | Not provided by Roblox's API |
+| Join friends | ⛔ | Presence needs the cookie |
 
 ## 6. Performance center
 | Feature | Status | Notes |
 |---|---|---|
-| FPS cap, graphics quality, allowlisted FastFlags, presets, profiles | ⬜ | Writes `ClientSettings/ClientAppSettings.json` in the version folder |
-| Memory monitoring | ⬜ | The Roblox process's working set, read through standard Windows process APIs (read-only) |
-| Launch diagnostics | ⬜ | Install integrity, handler, version, last client log errors |
-| Version pinning | ⬜ | Requires managed installs |
+| Allowlisted FastFlag editor (17 flags, typed and range-checked) | ✅ | Non-allowlisted flags are rejected and reported (Roblox ignores them since Sept 2025) |
+| Frame-rate cap and graphics quality (Roblox's own settings file) | ✅ | Refused while Roblox is running (it would overwrite them). One-time backup of the file |
+| Presets, custom profiles, active profile, import (Novastrap or Bloxstrap JSON) and export | ✅ | |
+| Memory monitoring | ✅ | Per client, on Instances and Diagnostics |
+| Launch diagnostics (install, handler, flags file, settings, mods, recent client log errors) | ✅ | |
+| FPS above 240 | ⛔ | Roblox doesn't support it, and the FPS flag isn't allowlisted |
+| Version pinning | ⬜ | Needs a managed (non-official-installer) install |
 
 ## 7. Mod and customization center
 | Feature | Status | Notes |
 |---|---|---|
-| Launcher themes, backgrounds, fonts, sounds | ⬜ | Launcher-side only |
-| Client cursors, fonts, sounds | ⬜ | Replaces files under the version's `content\` folder (Bloxstrap's mod model). Each changed file is backed up and reversible. Never the exe |
-| Compatibility checks | ⬜ | Validated against the installed version's content tree |
-| Import / export | ⬜ | Zip of the mods and profile JSON |
+| Client mods: arrow, far-arrow and text cursors, death sound | ✅ | File signature, size and target-exists checks. Originals backed up; revert restores them. Re-applied after updates |
+| Launcher accent color, font, background image with dimming, reduced motion, UI sounds | ✅ | |
+| Theme import/export | ✅ | |
+| Client font replacement | ⬜ | |
 
 ## 8. Catalog and avatar
 | Feature | Status | Notes |
 |---|---|---|
-| Catalog search, item thumbnails, details, prices | ⬜ | `catalog.roblox.com` public search and details |
-| Local favorite items | ⬜ | |
-| Avatar preview (your current avatar) | ⬜ | Public avatar thumbnails |
-| Avatar editor / try-on / purchase | ⛔ | Write endpoints need the cookie. Alternative: an "Open on Roblox" button for the item page |
+| Search, categories, sorting, pagination, thumbnails, prices, stock, details | ✅ live | |
+| Favorite items | ✅ | Local |
+| Avatar preview of the active account | ✅ live | |
+| Avatar editor, try-on, purchases | ⛔ | Needs the cookie. "Open on Roblox" / "Edit on Roblox" instead |
 
 ## 9. Trading center
 | Feature | Status | Notes |
 |---|---|---|
-| Item values from a third-party provider | ⬜ | Rolimons public item data. Every value is labelled "Source: Rolimons", with a timestamp |
-| Item comparison | ⬜ | Side by side, values with their source |
-| Trade history / inbound trades / notifications | ⛔ | Trade APIs need the cookie. Alternative: link to Roblox's own trades page |
+| Item values (value, RAP, demand, trend, projected/rare) | ✅ live | Source shown on the page: Rolimons, with fetch time. Unvalued items say "Not valued", never 0 |
+| Trade comparison calculator | ✅ | |
+| Trade history, offers, notifications | ⛔ | Needs the cookie |
 
 ## 10. Second-screen HUD
 | Feature | Status | Notes |
 |---|---|---|
-| Separate always-on-top window | ⬜ | A second Tauri window |
-| Current game, server, session duration | ⬜ | Taken from the client log watcher |
-| Current account | ⬜ | The launcher account, or the user ID seen in the client log |
-| Notifications | ⬜ | Launcher events |
-| In-game FPS | ⛔ | Reading the client's frame rate means hooking the process. Alternative: Roblox's built-in Shift+F5 stats |
-| Friends activity | ⛔ | Needs the cookie, same as above |
+| Always-on-top window: game, account, session time, server, Discord status, recent events | 🟡 | The first build rendered blank. Fixed (window marker via init script) but not yet re-checked on screen |
+| In-game FPS | ⛔ | Would need hooking the client. Points to Roblox's Shift+F5 |
+| Friends activity | ⛔ | Needs the cookie |
 
 ## 11. Discord integration
 | Feature | Status | Notes |
 |---|---|---|
-| Rich Presence with the current game and server | ⬜ | Discord IPC plus the log watcher |
-| Custom presence text, privacy toggles (hide game, hide join button) | ⬜ | |
+| Rich Presence: game, icon, elapsed time, optional join button, account, custom text | 🟡 | Implemented and privacy logic unit-tested. Needs your Discord application ID to run, so not tested end-to-end |
+| Privacy toggles (hide game, join button off by default, account hidden by default) | ✅ | |
 
 ## 12. Settings and storage
 | Feature | Status | Notes |
 |---|---|---|
-| Settings store (versioned JSON, atomic writes) | ⬜ | |
-| Pages: general, appearance, performance, accounts, instances, integrations, notifications | ⬜ | Each one arrives with its module |
-| Cache management and storage usage | ⬜ | Novastrap's cache, downloads, logs, old Roblox version folders |
-| App updates | ⬜ | tauri-plugin-updater with signed releases |
-| Logs | 🟡 | Rotating file logs are written. A viewer page is planned |
-| Configuration backups | ⬜ | |
+| General, accounts, integrations, notifications, privacy | ✅ | Validated before saving |
+| Storage usage; clear downloads and cache; remove old Roblox versions (blocked while Roblox runs) | ✅ | |
+| Logs viewer, open log folders | ✅ | |
+| Backups: export/import (never includes tokens) | ✅ | |
+| App update check (GitHub releases) | ✅ | Self-updating install is ⬜ (needs signed releases) |
 
-## Home dashboard (cross-cutting)
+## Home (cross-cutting)
 | Feature | Status | Notes |
 |---|---|---|
-| Install status, update, launch, join by link | ✅ | |
-| Recently played, playtime | ⬜ | Local history from the log watcher (module 11) |
-| Favorites, recently used accounts | ⬜ | After modules 2 and 4 |
+| Live "in game" card, recently played, playtime (7 days / total / top games), Rejoin | ✅ | Activity watcher (log replay tested on a real client log) |
+| Favorites, recent accounts, install/update/play/join | ✅ | |
 | Friends activity | ⛔ | Needs the cookie |
-| Custom backgrounds | ⬜ | Module 7 |
+| Custom background | ✅ | |

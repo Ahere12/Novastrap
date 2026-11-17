@@ -22,7 +22,9 @@ pub struct DiscoverHome {
 
 #[tauri::command]
 pub async fn discover_home(state: State<'_, AppState>) -> AppResult<DiscoverHome> {
-    let sorts = discover::sorts(&state.api).await?;
+    let started = std::time::Instant::now();
+    let sorts = discover::sorts(&state.api).await.inspect_err(|e| log::error!("discover sorts failed: {e}"))?;
+    log::info!("discover: {} sorts in {} ms", sorts.len(), started.elapsed().as_millis());
     let favs = state.favorites.get();
     let history = state.history.get();
     let mut liked: HashMap<String, u32> = HashMap::new();
@@ -53,7 +55,10 @@ pub async fn discover_home(state: State<'_, AppState>) -> AppResult<DiscoverHome
 
 #[tauri::command]
 pub async fn discover_search(state: State<'_, AppState>, query: String) -> AppResult<Vec<GameCard>> {
-    discover::search(&state.api, &query).await
+    let started = std::time::Instant::now();
+    let r = discover::search(&state.api, &query).await.inspect_err(|e| log::error!("search failed: {e}"))?;
+    log::info!("search: {} results in {} ms", r.len(), started.elapsed().as_millis());
+    Ok(r)
 }
 
 #[tauri::command]
@@ -68,7 +73,7 @@ pub async fn game_details(state: State<'_, AppState>, universe_id: Option<u64>, 
 
 #[tauri::command]
 pub async fn server_list(state: State<'_, AppState>, place_id: u64, order: Order, cursor: Option<String>, fresh: bool) -> AppResult<ServerPage> {
-    servers::list(&state.api, place_id, order, cursor.as_deref(), fresh).await
+    servers::list(&state.api, place_id, order, cursor.as_deref(), fresh).await.inspect_err(|e| log::error!("server list failed: {e}"))
 }
 
 #[tauri::command]
