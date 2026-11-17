@@ -12,6 +12,8 @@ pub struct Settings {
     pub instances: Instances,
     pub integrations: Integrations,
     pub notifications: Notifications,
+    pub shortcuts: Shortcuts,
+    pub updates: Updates,
 }
 
 impl Default for Settings {
@@ -23,6 +25,8 @@ impl Default for Settings {
             instances: Instances::default(),
             integrations: Integrations::default(),
             notifications: Notifications::default(),
+            shortcuts: Shortcuts::default(),
+            updates: Updates::default(),
         }
     }
 }
@@ -47,6 +51,31 @@ impl Settings {
         if self.appearance.background_dim > 95 {
             return Err(AppError::InvalidInput("Background dimming is 0–95%".into()));
         }
+        let ap = &self.appearance;
+        if !(TEXT_SCALE_MIN..=TEXT_SCALE_MAX).contains(&ap.text_scale) {
+            return Err(AppError::InvalidInput(format!("Text size is {TEXT_SCALE_MIN}–{TEXT_SCALE_MAX}%")));
+        }
+        for id in ap.sidebar_order.iter().chain(&ap.sidebar_hidden) {
+            if !SIDEBAR_SECTIONS.contains(&id.as_str()) {
+                return Err(AppError::InvalidInput(format!("Unknown sidebar section '{id}'")));
+            }
+        }
+        if ap.sidebar_hidden.iter().any(|h| h == "play") {
+            return Err(AppError::InvalidInput("The Roblox Player section can't be hidden".into()));
+        }
+        if !UPDATE_CHANNELS.contains(&self.updates.channel.as_str()) {
+            return Err(AppError::InvalidInput("Update channel is stable or beta".into()));
+        }
+        if self.shortcuts.enabled {
+            let mut seen = Vec::new();
+            for s in self.shortcuts.all().into_iter().filter(|s| !s.trim().is_empty()) {
+                let n = crate::shortcut::normalize(s)?;
+                if seen.contains(&n) {
+                    return Err(AppError::InvalidInput(format!("{n} is used twice")));
+                }
+                seen.push(n);
+            }
+        }
         if !THEMES.contains(&self.appearance.theme.as_str()) {
             return Err(AppError::InvalidInput("Unknown theme".into()));
         }
@@ -65,6 +94,47 @@ pub const FONTS: &[&str] = &["system", "segoe", "verdana", "bahnschrift", "conso
 /// still accepted in saved files and shown as the default (Legacy 2019), since nobody could have picked it.
 pub const THEMES: &[&str] = &["legacy", "classic", "launcher", "nova"];
 
+/// Sidebar sections that can be reordered (Settings is always last; Play can't be hidden).
+pub const SIDEBAR_SECTIONS: &[&str] = &["play", "explore", "market", "tune"];
+pub const TEXT_SCALE_MIN: u8 = 85;
+pub const TEXT_SCALE_MAX: u8 = 130;
+pub const UPDATE_CHANNELS: &[&str] = &["stable", "beta"];
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Shortcuts {
+    /// System-wide shortcuts are off until the user turns them on.
+    pub enabled: bool,
+    pub show_window: String,
+    pub toggle_hud: String,
+    pub play: String,
+}
+
+impl Default for Shortcuts {
+    fn default() -> Self {
+        Shortcuts { enabled: false, show_window: "Ctrl+Alt+N".into(), toggle_hud: "Ctrl+Alt+H".into(), play: "Ctrl+Alt+P".into() }
+    }
+}
+
+impl Shortcuts {
+    pub fn all(&self) -> [&str; 3] {
+        [&self.show_window, &self.toggle_hud, &self.play]
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Updates {
+    /// "stable" = full releases only; "beta" also offers GitHub pre-releases.
+    pub channel: String,
+}
+
+impl Default for Updates {
+    fn default() -> Self {
+        Updates { channel: "stable".into() }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default, rename_all = "camelCase")]
 pub struct General {
@@ -72,11 +142,13 @@ pub struct General {
     pub minimize_on_launch: bool,
     /// Watch Roblox's local logs for game activity (history, playtime, HUD, Discord).
     pub track_activity: bool,
+    /// Closing the window hides Novastrap to the system tray instead of quitting.
+    pub close_to_tray: bool,
 }
 
 impl Default for General {
     fn default() -> Self {
-        General { minimize_on_launch: false, track_activity: true }
+        General { minimize_on_launch: false, track_activity: true, close_to_tray: false }
     }
 }
 
@@ -91,6 +163,13 @@ pub struct Appearance {
     pub font: String,
     pub reduce_motion: bool,
     pub ui_sounds: bool,
+    /// Denser spacing everywhere.
+    pub compact: bool,
+    /// Text size in percent (accessibility).
+    pub text_scale: u8,
+    /// Section order in the sidebar (ids from SIDEBAR_SECTIONS; missing ones keep their default place).
+    pub sidebar_order: Vec<String>,
+    pub sidebar_hidden: Vec<String>,
 }
 
 impl Default for Appearance {
@@ -103,6 +182,10 @@ impl Default for Appearance {
             font: "system".into(),
             reduce_motion: false,
             ui_sounds: false,
+            compact: false,
+            text_scale: 100,
+            sidebar_order: Vec::new(),
+            sidebar_hidden: Vec::new(),
         }
     }
 }
@@ -191,5 +274,27 @@ mod tests {
         assert!(s.validate().is_err());
         s.appearance.theme = "launcher".into();
         assert!(s.validate().is_ok());
+        s.appearance.text_scale = 200;
+        assert!(s.validate().is_err());
+        s.appearance.text_scale = 110;
+        s.appearance.sidebar_hidden = vec!["play".into()];
+        assert!(s.validate().is_err());
+        s.appearance.sidebar_hidden = vec!["market".into()];
+        s.appearance.sidebar_order = vec!["tune".into(), "play".into()];
+        assert!(s.validate().is_ok());
+        s.appearance.sidebar_order = vec!["bogus".into()];
+        assert!(s.validate().is_err());
+        s.appearance.sidebar_order.clear();
+        s.updates.channel = "nightly".into();
+        assert!(s.validate().is_err());
+        s.updates.channel = "beta".into();
+        s.shortcuts.enabled = true;
+        assert!(s.validate().is_ok(), "defaults are valid");
+        s.shortcuts.play = "alt+ctrl+n".into();
+        assert!(s.validate().is_err(), "duplicate of show_window after normalizing");
+        s.shortcuts.play = "N".into();
+        assert!(s.validate().is_err());
+        s.shortcuts.play = String::new();
+        assert!(s.validate().is_ok(), "empty = unassigned");
     }
 }

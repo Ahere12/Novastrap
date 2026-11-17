@@ -16,6 +16,7 @@ pub fn spawn(app: AppHandle) {
             let st = novastrap_core::roblox::status(state.api.client()).await;
             if matches!(st.update, novastrap_core::roblox::UpdateState::UpdateAvailable) {
                 let _ = startup.notification().builder().title("Roblox update available").body("Open Novastrap's Home page to update.").show();
+                crate::desktop::notice(&startup, novastrap_core::notices::NoticeKind::Update, "Roblox update available", "Use Update now on the Play screen.");
             }
         }
     });
@@ -111,6 +112,8 @@ async fn on_join(app: &AppHandle, tracker: &mut Tracker) {
                 icon = d.icon_url;
             }
         }
+        let game = s.game_name.clone().unwrap_or_else(|| format!("Place {}", s.place_id));
+        crate::desktop::notice(app, novastrap_core::notices::NoticeKind::Game, "Joined a game", &game);
         if state.settings.get().notifications.game_joined {
             let _ = app
                 .notification()

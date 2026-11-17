@@ -18,6 +18,13 @@ export const THEMES: { id: string; label: string; hint: string }[] = [
   { id: "launcher", label: "Launcher", hint: "Dark game-launcher look" },
 ];
 
+const SECTION_LABELS: Record<string, string> = { play: "Roblox Player", explore: "Explore", market: "Marketplace", tune: "Tuning" };
+const SECTION_IDS = Object.keys(SECTION_LABELS);
+const orderedSections = (order: string[]) => {
+  const rank = (id: string) => { const i = order.indexOf(id); return i < 0 ? order.length + SECTION_IDS.indexOf(id) : i; };
+  return [...SECTION_IDS].sort((a, b) => rank(a) - rank(b));
+};
+
 export function Customize() {
   const { settings, saveSettings } = useApp();
   const slots = useAsync(() => backend.modSlots());
@@ -38,7 +45,7 @@ export function Customize() {
     try {
       const t = JSON.parse(await f.text());
       if (t.format !== "novastrap-theme-1") throw new Error();
-      await setAp({ theme: t.theme === "launcher" || t.theme === "classic" ? t.theme : "legacy", accent: t.accent, font: t.font, backgroundDim: t.backgroundDim, reduceMotion: !!t.reduceMotion, uiSounds: !!t.uiSounds });
+      await setAp({ compact: !!t.compact, textScale: Number(t.textScale) >= 85 && Number(t.textScale) <= 130 ? Number(t.textScale) : 100, theme: t.theme === "launcher" || t.theme === "classic" ? t.theme : "legacy", accent: t.accent, font: t.font, backgroundDim: t.backgroundDim, reduceMotion: !!t.reduceMotion, uiSounds: !!t.uiSounds });
       action.setMsg({ ok: true, text: "Theme imported" });
     } catch { action.setMsg({ ok: false, text: "That isn't a Novastrap theme file" }); }
   };
@@ -81,6 +88,31 @@ export function Customize() {
           </Field>
           <Toggle label="Reduce motion" hint="Turns off page and hover animations." checked={ap.reduceMotion} onChange={(v) => setAp({ reduceMotion: v })} />
           <Toggle label="Interface sounds" hint="A soft click when you navigate or launch." checked={ap.uiSounds} onChange={(v) => setAp({ uiSounds: v })} />
+          <Toggle label="Compact mode" hint="Tighter spacing so more fits on screen." checked={ap.compact} onChange={(v) => setAp({ compact: v })} />
+          <Field label={`Text and interface size: ${ap.textScale}%`}>
+            <input type="range" min={85} max={130} step={5} value={ap.textScale} onChange={(e) => setAp({ textScale: Number(e.target.value) })} aria-label="Text and interface size" />
+          </Field>
+        </Card>
+        <Card title="Sidebar">
+          <p className="muted small">Reorder or hide sections. Roblox Player always stays visible; Settings is always at the bottom.</p>
+          <ul className="list compact">
+            {orderedSections(ap.sidebarOrder).map((id, i, all) => {
+              const hidden = ap.sidebarHidden.includes(id);
+              const move = (d: number) => { const next = [...all]; [next[i], next[i + d]] = [next[i + d], next[i]]; void setAp({ sidebarOrder: next }); };
+              return (
+                <li key={id}>
+                  <span className={`grow ${hidden ? "muted" : ""}`}>{SECTION_LABELS[id]}{hidden && " (hidden)"}</span>
+                  <button className="btn btn-sm" disabled={i === 0} onClick={() => move(-1)} aria-label={`Move ${SECTION_LABELS[id]} up`}>↑</button>
+                  <button className="btn btn-sm" disabled={i === all.length - 1} onClick={() => move(1)} aria-label={`Move ${SECTION_LABELS[id]} down`}>↓</button>
+                  <button className="btn btn-sm" disabled={id === "play"}
+                    onClick={() => setAp({ sidebarHidden: hidden ? ap.sidebarHidden.filter((h) => h !== id) : [...ap.sidebarHidden, id] })}>
+                    {hidden ? "Show" : "Hide"}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          <div className="row"><button className="btn btn-sm" onClick={() => setAp({ sidebarOrder: [], sidebarHidden: [] })}>Reset sidebar</button></div>
         </Card>
         <Card title="Background">
           <p className="muted small">A PNG, JPEG or WebP image under 8 MB, stored in Novastrap's own folder.</p>

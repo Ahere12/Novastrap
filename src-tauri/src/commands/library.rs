@@ -136,6 +136,27 @@ pub async fn home_data(state: State<'_, AppState>) -> Result<HomeData, ()> {
     })
 }
 
+/// Servers from local play history (newest first, one entry per server).
+#[tauri::command]
+pub fn server_history(state: State<'_, AppState>) -> Vec<activity::Session> {
+    let mut seen = HashSet::new();
+    let mut out: Vec<activity::Session> = state.history.get().sessions.into_iter().rev().filter(|s| !s.job_id.is_empty() && seen.insert(s.job_id.clone())).collect();
+    out.truncate(50);
+    out
+}
+
+/// Writes a desktop shortcut that opens the game through Roblox's own link.
+#[tauri::command]
+pub fn create_game_shortcut(app: tauri::AppHandle, place_id: u64, name: String) -> AppResult<String> {
+    use tauri::Manager;
+    novastrap_core::roblox::launch::LaunchTarget::place(place_id, None)?;
+    let desktop = app.path().desktop_dir().map_err(|e| novastrap_core::error::AppError::Launch(e.to_string()))?;
+    let (file, body) = novastrap_core::links::game_shortcut(&name, place_id);
+    let path = desktop.join(file);
+    std::fs::write(&path, body)?;
+    Ok(path.display().to_string())
+}
+
 #[tauri::command]
 pub fn clear_history(state: State<'_, AppState>) -> AppResult<()> {
     state.history.update(|h| h.sessions.clear())

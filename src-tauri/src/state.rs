@@ -6,6 +6,8 @@ use novastrap_core::discord::Rpc;
 use novastrap_core::favorites::FavoritesFile;
 use novastrap_core::instances::{InstancesFile, RunningInstance};
 use novastrap_core::mods::ModsFile;
+use novastrap_core::notices::NoticesFile;
+use novastrap_core::releases::UpdateHistory;
 use novastrap_core::performance::ProfilesFile;
 use novastrap_core::settings::Settings;
 use novastrap_core::store::JsonStore;
@@ -38,6 +40,10 @@ pub struct AppState {
     pub profiles: JsonStore<ProfilesFile>,
     pub mods: JsonStore<ModsFile>,
     pub history: JsonStore<HistoryFile>,
+    pub notices: JsonStore<NoticesFile>,
+    pub update_history: JsonStore<UpdateHistory>,
+    /// Global shortcuts that failed to register (shown in Settings).
+    pub shortcut_problems: Mutex<Vec<String>>,
     pub launched: Mutex<Vec<RunningInstance>>,
     pub live: Mutex<Live>,
     pub discord: Mutex<Option<Rpc>>,
@@ -56,6 +62,9 @@ impl AppState {
             profiles: JsonStore::open(d("performance.json")),
             mods: JsonStore::open(d("mods.json")),
             history: JsonStore::open(d("history.json")),
+            notices: JsonStore::open(d("notices.json")),
+            update_history: JsonStore::open(d("update-history.json")),
+            shortcut_problems: Mutex::new(Vec::new()),
             launched: Mutex::new(Vec::new()),
             live: Mutex::new(Live::default()),
             discord: Mutex::new(None),

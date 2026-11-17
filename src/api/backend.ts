@@ -96,6 +96,8 @@ export interface PerformanceState {
 export interface Diagnostics {
   status: RobloxStatus; clients: ClientProcess[]; flagsFile: string | null; flagsWritten: number;
   robloxSettings: RobloxSettings; recentErrors: string[]; mods: { slotId: string; ok: boolean; reason: string | null }[];
+  /** Signature check of RobloxPlayerBeta.exe; null when Roblox isn't installed. */
+  executableSignature: { Ok: null } | { Err: string } | null;
 }
 
 // ---- mods / catalog / trading ----
@@ -122,10 +124,11 @@ export interface ValueTable { sourceName: string; sourceUrl: string; fetchedAt: 
 
 // ---- settings / system ----
 export interface Settings {
-  general: { minimizeOnLaunch: boolean; trackActivity: boolean };
+  general: { minimizeOnLaunch: boolean; trackActivity: boolean; closeToTray: boolean };
   appearance: {
     theme: string; accent: string; background: string | null; backgroundDim: number; font: string;
-    reduceMotion: boolean; uiSounds: boolean;
+    reduceMotion: boolean; uiSounds: boolean; compact: boolean; textScale: number;
+    sidebarOrder: string[]; sidebarHidden: string[];
   };
   accounts: { oauthClientId: string; activeUserId: number | null };
   instances: { defaultProfile: string | null };
@@ -134,9 +137,17 @@ export interface Settings {
     discordShowAccount: boolean; discordCustomState: string;
   };
   notifications: { gameJoined: boolean; updateAvailable: boolean };
+  shortcuts: { enabled: boolean; showWindow: string; toggleHud: string; play: string };
+  updates: { channel: "stable" | "beta" };
 }
+export type NoticeKind = "update" | "game" | "launch" | "error" | "info";
+export interface Notice { id: number; at: number; kind: NoticeKind; title: string; body: string; read: boolean }
+export interface Release {
+  tagName: string; name: string | null; body: string | null; htmlUrl: string; prerelease: boolean; draft: boolean; publishedAt: string | null;
+}
+export interface ReleasesView { releases: Release[]; history: { version: string; firstRun: number }[] }
 export interface StorageItem { id: string; label: string; bytes: number; clearable: boolean }
-export interface UpdateInfo { current: string; latest: string | null; url: string | null; updateAvailable: boolean }
+export interface UpdateInfo { current: string; channel: string; latest: string | null; url: string | null; updateAvailable: boolean }
 export interface AppInfo { name: string; version: string }
 
 export const backend = {
@@ -144,7 +155,7 @@ export const backend = {
   // launcher
   robloxStatus: () => invoke<RobloxStatus>("roblox_status"),
   installRoblox: () => invoke<void>("install_roblox"),
-  launchRoblox: (input: string, jobId?: string) => invoke<Launched>("launch_roblox", { input, jobId: jobId ?? null }),
+  launchRoblox: (input: string, jobId?: string, safe?: boolean) => invoke<Launched>("launch_roblox", { input, jobId: jobId ?? null, safe: safe ?? false }),
   onInstallProgress: (cb: (p: InstallProgress) => void): Promise<UnlistenFn> =>
     listen<InstallProgress>("install-progress", (e) => cb(e.payload)),
   // instances
@@ -182,6 +193,8 @@ export const backend = {
   toggleFavoriteItem: (item: FavItem) => invoke<boolean>("toggle_favorite_item", { item }),
   homeData: () => invoke<HomeData>("home_data"),
   clearHistory: () => invoke<void>("clear_history"),
+  serverHistory: () => invoke<Session[]>("server_history"),
+  createGameShortcut: (placeId: number, name: string) => invoke<string>("create_game_shortcut", { placeId, name }),
   // mods / appearance / catalog / trading
   modSlots: () => invoke<ModSlot[]>("mod_slots"),
   modChooseFile: (slotId: string) => invoke<boolean>("mod_choose_file", { slotId }),
@@ -206,4 +219,10 @@ export const backend = {
   backupExport: () => invoke<string | null>("backup_export"),
   backupImport: () => invoke<boolean>("backup_import"),
   checkAppUpdate: () => invoke<UpdateInfo>("check_app_update"),
+  appReleases: () => invoke<ReleasesView>("app_releases"),
+  noticesList: () => invoke<{ items: Notice[] }>("notices_list"),
+  noticesMarkRead: () => invoke<void>("notices_mark_read"),
+  noticesClear: () => invoke<void>("notices_clear"),
+  onNotice: (cb: (n: Notice) => void): Promise<UnlistenFn> => listen<Notice>("notice", (e) => cb(e.payload)),
+  shortcutProblems: () => invoke<string[]>("shortcut_problems"),
 };

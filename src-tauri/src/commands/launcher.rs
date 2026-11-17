@@ -65,12 +65,13 @@ fn all_profiles(state: &AppState) -> Vec<PerformanceProfile> {
 }
 
 /// Applies the performance profile and mods to the chosen version, then starts the client.
-async fn prepare_and_launch(
+pub(crate) async fn prepare_and_launch(
     app: &tauri::AppHandle,
     state: &AppState,
     target: LaunchTarget,
     profile_name: Option<String>,
     instance: Option<(String, String)>,
+    safe: bool,
 ) -> AppResult<Launched> {
     let list = installs();
     let handler = detect::classify_handler(detect::read_protocol_command().as_deref());
@@ -81,7 +82,19 @@ async fn prepare_and_launch(
     let version_dir = exe.parent().map(|p| p.to_path_buf()).unwrap_or_default();
     let mut warnings = Vec::new();
 
-    let wanted = profile_name.or(state.profiles.get().active);
+    if safe {
+        // Safe mode: no FastFlags and Roblox's original files for this launch. The next normal
+        // launch writes the active profile's flags and re-applies mods as usual.
+        if let Err(e) = performance::write_flags(&version_dir, &PerformanceProfile::default()) {
+            warnings.push(format!("Couldn't clear FastFlags: {e}"));
+        }
+        for slot in state.mods.get().enabled.keys() {
+            if let Err(e) = mods::revert(&state.mods_dir(), &version_dir, slot) {
+                warnings.push(format!("Couldn't restore the original file for {slot}: {e}"));
+            }
+        }
+    }
+    let wanted = if safe { None } else { profile_name.or(state.profiles.get().active) };
     if let Some(name) = wanted {
         match all_profiles(state).into_iter().find(|p| p.name == name) {
             Some(p) => {
@@ -100,12 +113,14 @@ async fn prepare_and_launch(
             None => warnings.push(format!("Performance profile '{name}' no longer exists")),
         }
     }
-    if let Err(e) = mods::apply_all(&state.mods_dir(), &version_dir, &state.mods.get()) {
-        warnings.push(format!("Mods weren't applied: {e}"));
+    if !safe {
+        if let Err(e) = mods::apply_all(&state.mods_dir(), &version_dir, &state.mods.get()) {
+            warnings.push(format!("Mods weren't applied: {e}"));
+        }
     }
 
     let pid = launch::spawn(&exe, &target)?;
-    let (profile_id, name) = instance.map(|(i, n)| (Some(i), n)).unwrap_or((None, "Quick launch".into()));
+    let (profile_id, name) = instance.map(|(i, n)| (Some(i), n)).unwrap_or((None, if safe { "Safe mode" } else { "Quick launch" }.into()));
     state.launched.lock().unwrap().push(RunningInstance { pid, profile_id, name, started_at: now() });
     if let Some(id) = state.settings.get().accounts.active_user_id {
         let _ = state.accounts.update(|a| a.touch(id, now()));
@@ -120,12 +135,29 @@ async fn prepare_and_launch(
 
 /// Launches the app home (empty input), or joins a place ID / link / server.
 #[tauri::command]
-pub async fn launch_roblox(app: tauri::AppHandle, state: State<'_, AppState>, input: String, job_id: Option<String>) -> AppResult<Launched> {
+pub async fn launch_roblox(app: tauri::AppHandle, state: State<'_, AppState>, input: String, job_id: Option<String>, safe: Option<bool>) -> AppResult<Launched> {
     let target = match (LaunchTarget::parse_user_input(&input)?, job_id) {
         (LaunchTarget::Place { place_id, .. }, Some(j)) => LaunchTarget::place(place_id, Some(j))?,
         (t, _) => t,
     };
-    prepare_and_launch(&app, &state, target, None, None).await
+    let safe = safe.unwrap_or(false);
+    let r = prepare_and_launch(&app, &state, target, None, None, safe).await;
+    if safe {
+        let body = match &r { Ok(_) => "Roblox started without FastFlags or mods.".to_string(), Err(e) => e.to_string() };
+        crate::desktop::notice(&app, novastrap_core::notices::NoticeKind::Launch, "Safe-mode launch", &body);
+    }
+    r
+}
+
+/// What the tray menu and the Play shortcut launch: the Play bar's instance, or the Roblox app.
+pub(crate) async fn play_default(app: &tauri::AppHandle) -> AppResult<Launched> {
+    let state = app.state::<AppState>();
+    let chosen = state.settings.get().instances.default_profile;
+    if let Some(p) = chosen.and_then(|id| state.instances.get().profiles.into_iter().find(|p| p.id == id)) {
+        let target = p.validate()?;
+        return prepare_and_launch(app, &state, target, p.performance_profile.clone(), Some((p.id, p.name)), false).await;
+    }
+    prepare_and_launch(app, &state, LaunchTarget::App, None, None, false).await
 }
 
 // ---- instances ----------------------------------------------------------------
@@ -168,7 +200,7 @@ pub fn delete_instance_profile(state: State<'_, AppState>, id: String) -> AppRes
 pub async fn launch_instance(app: tauri::AppHandle, state: State<'_, AppState>, id: String) -> AppResult<Launched> {
     let p = state.instances.get().profiles.into_iter().find(|p| p.id == id).ok_or_else(|| AppError::InvalidInput("That instance profile no longer exists".into()))?;
     let target = p.validate()?;
-    prepare_and_launch(&app, &state, target, p.performance_profile.clone(), Some((p.id, p.name))).await
+    prepare_and_launch(&app, &state, target, p.performance_profile.clone(), Some((p.id, p.name)), false).await
 }
 
 #[tauri::command]
@@ -283,12 +315,19 @@ pub struct Diagnostics {
     pub roblox_settings: RobloxSettings,
     pub recent_errors: Vec<String>,
     pub mods: Vec<mods::Compatibility>,
+    /// Signature check of the installed RobloxPlayerBeta.exe (Ok = signed by Roblox Corporation).
+    pub executable_signature: Option<Result<(), String>>,
 }
 
 #[tauri::command]
 pub async fn diagnostics(state: State<'_, AppState>) -> Result<Diagnostics, ()> {
     let status = roblox::status(state.api.client()).await;
     let dir = status.installations.first().map(|i| i.directory.clone());
+    let exe = status.installations.first().map(|i| i.executable.clone());
+    let executable_signature = match exe {
+        Some(p) => tokio::task::spawn_blocking(move || novastrap_core::roblox::install::verify_signature(&p).map_err(|e| e.to_string())).await.ok(),
+        None => None,
+    };
     let recent_errors = novastrap_core::activity::logs_dir()
         .and_then(|d| novastrap_core::activity::newest_player_log(&d))
         .and_then(|p| std::fs::read_to_string(p).ok())
@@ -312,6 +351,7 @@ pub async fn diagnostics(state: State<'_, AppState>) -> Result<Diagnostics, ()> 
             .map(|d| state.mods.get().enabled.keys().map(|k| mods::check(d, k)).collect())
             .unwrap_or_default(),
         recent_errors,
+        executable_signature,
         status,
     })
 }

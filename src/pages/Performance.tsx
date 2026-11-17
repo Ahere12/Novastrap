@@ -32,6 +32,31 @@ function download(name: string, text: string) {
   URL.revokeObjectURL(a.href);
 }
 
+/** Safe-mode launch and repair (re-running the official installer). */
+function RepairTools({ onDone }: { onDone: () => void }) {
+  const action = useAction();
+  return (
+    <div className="repair">
+      <h3>Troubleshooting</h3>
+      <div className="row">
+        <button className="btn" disabled={action.busy} title="Starts Roblox once with no FastFlags and Roblox's original files"
+          onClick={() => action.run(async () => { const r = await backend.launchRoblox("", undefined, true); return r; }, (r) => {
+            const w = (r as { warnings: string[] }).warnings; return w.length ? `Started in safe mode (${w.join("; ")})` : "Started Roblox in safe mode";
+          })}>
+          Launch in safe mode
+        </button>
+        <button className="btn" disabled={action.busy}
+          onClick={() => confirm("Download Roblox's official installer, check its signature and run it to repair the install?") &&
+            action.run(async () => { await backend.installRoblox(); onDone(); }, "Repair finished: the official installer ran")}>
+          {action.busy ? "Working…" : "Repair Roblox"}
+        </button>
+      </div>
+      <p className="muted small">Safe mode skips your FastFlags and mods for one launch; they come back on the next normal launch. Repair re-runs the signed official installer, which restores Roblox's files.</p>
+      <Msg msg={action.msg} />
+    </div>
+  );
+}
+
 export function Performance() {
   const st = useAsync(() => backend.performanceState());
   const diag = useAsync(() => backend.diagnostics());
@@ -193,7 +218,10 @@ export function Performance() {
                 <dt>Graphics quality</dt><dd>{diag.data.robloxSettings.graphicsQuality ?? "—"}</dd>
                 <dt>Running clients</dt><dd>{diag.data.clients.length ? diag.data.clients.map((c) => `${c.pid} (${fmtBytes(c.memoryBytes)})`).join(", ") : "None"}</dd>
                 <dt>Mods</dt><dd>{diag.data.mods.length ? diag.data.mods.map((m) => `${m.slotId}: ${m.ok ? "OK" : m.reason}`).join(" · ") : "None enabled"}</dd>
+                <dt>Player signature</dt><dd>{diag.data.executableSignature === null ? "—" : "Ok" in diag.data.executableSignature
+                  ? <span className="ok">Signed by Roblox Corporation</span> : <span className="error">{diag.data.executableSignature.Err}</span>}</dd>
               </dl>
+              <RepairTools onDone={diag.reload} />
               <h3>Recent client log errors</h3>
               {diag.data.recentErrors.length ? <pre className="log">{diag.data.recentErrors.join("\n")}</pre> : <Empty>No errors in the latest Roblox log.</Empty>}
             </>

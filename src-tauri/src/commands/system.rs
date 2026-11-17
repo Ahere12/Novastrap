@@ -8,6 +8,7 @@ use novastrap_core::favorites::FavoritesFile;
 use novastrap_core::instances::{self, InstancesFile};
 use novastrap_core::mods::ModsFile;
 use novastrap_core::performance::ProfilesFile;
+use novastrap_core::releases;
 use novastrap_core::settings::Settings;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -32,12 +33,15 @@ pub fn get_settings(state: State<'_, AppState>) -> Settings {
 }
 
 #[tauri::command]
-pub fn save_settings(state: State<'_, AppState>, settings: Settings) -> AppResult<Settings> {
+pub fn save_settings(app: tauri::AppHandle, state: State<'_, AppState>, settings: Settings) -> AppResult<Settings> {
     settings.validate()?;
     let before = state.settings.get();
     // The background file is managed by its own commands.
     let next = Settings { appearance: novastrap_core::settings::Appearance { background: before.appearance.background.clone(), ..settings.appearance.clone() }, ..settings };
     state.settings.replace(next.clone())?;
+    if next.shortcuts != before.shortcuts {
+        crate::desktop::apply_shortcuts(&app, &next.shortcuts);
+    }
     if !next.integrations.discord_enabled {
         if let Some(mut rpc) = state.discord.lock().unwrap().take() {
             rpc.clear();
@@ -260,29 +264,72 @@ pub async fn backup_import(app: tauri::AppHandle, state: State<'_, AppState>) ->
 
 // ---- app updates (GitHub releases of this repository) -------------------------------
 
-#[derive(Deserialize)]
-struct Release {
-    tag_name: String,
-    html_url: String,
-}
-
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateInfo {
     pub current: &'static str,
+    pub channel: String,
     pub latest: Option<String>,
     pub url: Option<String>,
     pub update_available: bool,
 }
 
+async fn channel_releases(state: &AppState) -> AppResult<Vec<releases::Release>> {
+    let all: Vec<releases::Release> = match state.api.get_json(releases::RELEASES_URL, novastrap_core::web::ttl::MEDIUM).await {
+        Ok(v) => v,
+        Err(AppError::HttpStatus(404)) => Vec::new(),
+        Err(e) => return Err(e),
+    };
+    Ok(releases::for_channel(all, &state.settings.get().updates.channel))
+}
+
 #[tauri::command]
 pub async fn check_app_update(state: State<'_, AppState>) -> AppResult<UpdateInfo> {
-    let url = "https://api.github.com/repos/Ahere12/Novastrap/releases/latest";
     let current = env!("CARGO_PKG_VERSION");
-    match state.api.get_json::<Release>(url, novastrap_core::web::ttl::MEDIUM).await {
-        Ok(r) => Ok(UpdateInfo { current, update_available: novastrap_core::links::newer(&r.tag_name, current), latest: Some(r.tag_name), url: Some(r.html_url) }),
-        // 404 = no releases published yet.
-        Err(AppError::HttpStatus(404)) => Ok(UpdateInfo { current, latest: None, url: None, update_available: false }),
-        Err(e) => Err(e),
-    }
+    let list = channel_releases(&state).await?;
+    let channel = state.settings.get().updates.channel;
+    let latest = list.first();
+    Ok(UpdateInfo {
+        current,
+        channel,
+        update_available: releases::update_for(&list, current).is_some(),
+        latest: latest.map(|r| r.tag_name.clone()),
+        url: latest.map(|r| r.html_url.clone()),
+    })
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReleasesView {
+    /// Published releases on the chosen channel (changelog), newest first.
+    pub releases: Vec<releases::Release>,
+    /// Versions this PC has run (oldest first).
+    pub history: Vec<releases::VersionSeen>,
+}
+
+#[tauri::command]
+pub async fn app_releases(state: State<'_, AppState>) -> AppResult<ReleasesView> {
+    Ok(ReleasesView { releases: channel_releases(&state).await?, history: state.update_history.get().versions })
+}
+
+// ---- notification center ----------------------------------------------------------
+
+#[tauri::command]
+pub fn notices_list(state: State<'_, AppState>) -> novastrap_core::notices::NoticesFile {
+    state.notices.get()
+}
+
+#[tauri::command]
+pub fn notices_mark_read(state: State<'_, AppState>) -> AppResult<()> {
+    state.notices.update(|f| f.mark_all_read())
+}
+
+#[tauri::command]
+pub fn notices_clear(state: State<'_, AppState>) -> AppResult<()> {
+    state.notices.update(|f| f.items.clear())
+}
+
+#[tauri::command]
+pub fn shortcut_problems(state: State<'_, AppState>) -> Vec<String> {
+    state.shortcut_problems.lock().unwrap().clone()
 }

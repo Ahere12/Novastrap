@@ -27,9 +27,37 @@ pub fn newer(latest: &str, current: &str) -> bool {
     parse(latest) > parse(current)
 }
 
+/// A Windows Internet Shortcut that opens an experience through Roblox's own `roblox://` link.
+/// Returns (file name, file contents).
+pub fn game_shortcut(name: &str, place_id: u64) -> (String, String) {
+    let mut clean: String = name
+        .chars()
+        .filter(|c| !c.is_control() && !"<>:\"/\\|?*".contains(*c))
+        .collect::<String>()
+        .trim()
+        .trim_end_matches('.')
+        .chars()
+        .take(60)
+        .collect();
+    if clean.trim().is_empty() {
+        clean = format!("Roblox game {place_id}");
+    }
+    let body = format!("[InternetShortcut]\r\nURL=roblox://experiences/start?placeId={place_id}\r\n");
+    (format!("{}.url", clean.trim()), body)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn game_shortcut_files() {
+        let (f, b) = game_shortcut("  Do Not Stop: <A Driving Game>?.. ", 42);
+        assert_eq!(f, "Do Not Stop A Driving Game.url");
+        assert!(b.contains("URL=roblox://experiences/start?placeId=42"));
+        assert_eq!(game_shortcut("???", 7).0, "Roblox game 7.url");
+        assert_eq!(game_shortcut(&"x".repeat(200), 1).0.len(), 64);
+    }
 
     #[test]
     fn external_allowlist() {

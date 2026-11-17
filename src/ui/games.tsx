@@ -1,6 +1,6 @@
 // Game tiles, rows and the game detail modal (with its own server list).
 import { useState } from "react";
-import { backend, type GameCard, type GameDetail } from "../api/backend";
+import { backend, errorMessage, type GameCard, type GameDetail } from "../api/backend";
 import { useApp, type GameRef } from "../app/context";
 import { ServerList } from "../pages/Servers";
 import { Empty, ErrorBox, Img, Modal, Skeletons, Tabs, fmtNum, useAsync } from "./kit";
@@ -46,7 +46,7 @@ export function GameRow({ title, hint, games }: { title: string; hint?: string |
 }
 
 export function GameModal({ refGame }: { refGame: GameRef }) {
-  const { closeGame, play, favorites, toggleFavoriteGame } = useApp();
+  const { closeGame, play, favorites, toggleFavoriteGame, toast } = useApp();
   const [tab, setTab] = useState<"about" | "servers">("about");
   const [shot, setShot] = useState(0);
   const { data: g, error, loading, reload } = useAsync<GameDetail>(
@@ -89,6 +89,10 @@ export function GameModal({ refGame }: { refGame: GameRef }) {
             <div className="row">
               <button className="btn" onClick={() => toggleFavoriteGame({ universeId: g.id, placeId: g.rootPlaceId, name: g.name, iconUrl: g.iconUrl, genre: g.genre })}>
                 {fav ? "★ Favorited" : "☆ Favorite"}
+              </button>
+              <button className="btn" title="Adds a desktop icon that opens this experience through Roblox's own link"
+                onClick={async () => { try { await backend.createGameShortcut(g.rootPlaceId, g.name); toast(true, `Desktop shortcut created for ${g.name}`); } catch (e) { toast(false, errorMessage(e)); } }}>
+                Desktop shortcut
               </button>
               <button className="btn btn-primary" onClick={() => play(String(g.rootPlaceId))}>Play</button>
             </div>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import { backend, errorMessage, type Server, type ServerOrder } from "../api/backend";
 import { useApp } from "../app/context";
-import { Card, Empty, ErrorBox, Page, Skeletons, useAsync } from "../ui/kit";
+import { Card, Empty, ErrorBox, Page, Skeletons, timeAgo, useAsync } from "../ui/kit";
 
 function parsePlace(input: string): number | null {
   const s = input.trim();
@@ -81,6 +81,35 @@ export function ServerList({ placeId, gameName }: { placeId: number; gameName: s
   );
 }
 
+/** Servers you've played on, from local activity history. */
+function ServerHistory() {
+  const { play } = useApp();
+  const hist = useAsync(() => backend.serverHistory());
+  return (
+    <Card title="Server history" right={<button className="btn btn-sm" onClick={hist.reload}>Refresh</button>}>
+      {hist.loading && !hist.data && <Skeletons n={2} />}
+      {hist.error && <ErrorBox error={hist.error} onRetry={hist.reload} />}
+      {hist.data && !hist.data.length && <Empty>Servers you join appear here (activity tracking must be on).</Empty>}
+      {hist.data && hist.data.length > 0 && (
+        <table className="table">
+          <thead><tr><th>Experience</th><th>Server</th><th>Played</th><th /></tr></thead>
+          <tbody>
+            {hist.data.map((s) => (
+              <tr key={s.jobId}>
+                <td>{s.gameName ?? `Place ${s.placeId}`}</td>
+                <td className="mono small">{s.jobId.slice(0, 8)}…</td>
+                <td className="muted small">{timeAgo(s.endedAt ?? s.startedAt)}</td>
+                <td className="actions"><button className="btn btn-sm btn-primary" onClick={() => play(String(s.placeId), s.jobId)}>Rejoin</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <p className="muted small">Rejoin only works while that server is still running; Roblox closes empty servers.</p>
+    </Card>
+  );
+}
+
 export function Servers() {
   const { params, favorites, play, refreshFavorites, toast } = useApp();
   const [input, setInput] = useState(params.place ?? "");
@@ -128,6 +157,7 @@ export function Servers() {
         ) : <Empty>Star a server to keep it here. Servers close when empty, so saved ones can expire.</Empty>}
         <p className="muted small">Joining friends needs Roblox's signed-in session, which Novastrap doesn't use. Use Roblox's own friends list for that.</p>
       </Card>
+      <ServerHistory />
     </Page>
   );
 }

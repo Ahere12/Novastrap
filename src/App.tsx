@@ -14,6 +14,7 @@ import { Trading } from "./pages/Trading";
 import { GameModal } from "./ui/games";
 import { Logo } from "./ui/Logo";
 import { Img } from "./ui/kit";
+import { NoticeBell } from "./ui/Notices";
 import "./App.css";
 
 /**
@@ -81,6 +82,9 @@ function useTheme() {
     if (stack) r.setProperty("--font", stack); else r.removeProperty("--font");
     document.documentElement.dataset.theme = themeOf(ap.theme);
     document.documentElement.dataset.motion = ap.reduceMotion ? "reduced" : "full";
+    document.documentElement.dataset.density = ap.compact ? "compact" : "normal";
+    // Text size scales the whole interface so layouts stay proportional.
+    document.documentElement.style.setProperty("zoom", String((ap.textScale || 100) / 100));
   }, [ap]);
   useEffect(() => {
     const load = () => backend.backgroundData().then(setBg).catch(() => setBg(null));
@@ -119,11 +123,16 @@ function RailItem({ s, active, onClick }: { s: Section; active: boolean; onClick
 }
 
 function Shell() {
-  const { page, go, game, toasts, toast } = useApp();
+  const { page, go, game, toasts, toast, settings } = useApp();
   const [version, setVersion] = useState("");
   const { bg, dim } = useTheme();
   useEffect(() => { backend.appInfo().then((i) => setVersion(i.version)).catch(() => undefined); }, []);
   const section = sectionOf(page);
+  // Sidebar order and visibility from Customize; unknown/missing ids keep their default place.
+  const order = settings?.appearance.sidebarOrder ?? [];
+  const hidden = new Set(settings?.appearance.sidebarHidden ?? []);
+  const rank = (id: string) => { const i = order.indexOf(id); return i < 0 ? order.length + SECTIONS.findIndex((s) => s.id === id) : i; };
+  const visible = SECTIONS.filter((s) => s.id === "play" || !hidden.has(s.id)).sort((a, b) => rank(a.id) - rank(b.id));
 
   const pages: Record<PageId, ReactElement> = {
     home: <Home />, discover: <Discover />, servers: <Servers />, instances: <Instances />, accounts: <Accounts />,
@@ -136,7 +145,7 @@ function Shell() {
       <nav className="rail" aria-label="Sections">
         <RailAccount />
         <div className="rail-list">
-          {SECTIONS.map((s) => <RailItem key={s.id} s={s} active={s.id === section.id} onClick={() => go(s.tabs[0].id)} />)}
+          {visible.map((s) => <RailItem key={s.id} s={s} active={s.id === section.id} onClick={() => go(s.tabs[0].id)} />)}
         </div>
         <div className="rail-foot">
           <button className="rail-item small" title="Opens or closes an always-on-top window for a second screen"
@@ -149,7 +158,10 @@ function Shell() {
       </nav>
       <div className="main">
         <header className="topbar">
-          <h1 className="topbar-title">{section.label}</h1>
+          <div className="topbar-row">
+            <h1 className="topbar-title">{section.label}</h1>
+            <NoticeBell />
+          </div>
           <div className="topbar-tabs" role="tablist">
             {section.tabs.map((t) => (
               <button key={t.id} role="tab" aria-selected={t.id === page} className={`top-tab ${t.id === page ? "active" : ""}`} onClick={() => go(t.id)}>

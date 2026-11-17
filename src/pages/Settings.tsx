@@ -3,9 +3,9 @@ import { backend, type Settings as S } from "../api/backend";
 import { useApp } from "../app/context";
 import { Card, Empty, ErrorBox, Field, Msg, Page, Skeletons, Tabs, Toggle, fmtBytes, useAction, useAsync } from "../ui/kit";
 
-type Tab = "general" | "accounts" | "integrations" | "notifications" | "privacy" | "storage" | "logs" | "about";
+type Tab = "general" | "shortcuts" | "accounts" | "integrations" | "notifications" | "privacy" | "storage" | "logs" | "about";
 const TABS: { id: Tab; label: string }[] = [
-  { id: "general", label: "General" }, { id: "accounts", label: "Accounts" }, { id: "integrations", label: "Integrations" },
+  { id: "general", label: "General" }, { id: "shortcuts", label: "Shortcuts" }, { id: "accounts", label: "Accounts" }, { id: "integrations", label: "Integrations" },
   { id: "notifications", label: "Notifications" }, { id: "privacy", label: "Privacy" }, { id: "storage", label: "Storage & backups" },
   { id: "logs", label: "Logs" }, { id: "about", label: "About & updates" },
 ];
@@ -61,10 +61,76 @@ function Logs() {
   );
 }
 
-function About() {
-  const info = useAsync(() => backend.appInfo());
-  const upd = useAsync(() => backend.checkAppUpdate());
+function Releases({ channel }: { channel: string }) {
+  const rel = useAsync(() => backend.appReleases(), [channel]);
   return (
+    <>
+      <Card title="Changelog" right={<span className="muted small">{channel === "beta" ? "Stable and beta releases" : "Stable releases"}</span>}>
+        {rel.loading && !rel.data && <Skeletons n={2} />}
+        {rel.error && <ErrorBox error={rel.error} onRetry={rel.reload} />}
+        {rel.data && !rel.data.releases.length && <Empty>No releases have been published on GitHub yet, so there's no changelog to show.</Empty>}
+        {rel.data?.releases.map((r) => (
+          <div key={r.tagName} className="release">
+            <div className="row between">
+              <b>{r.name || r.tagName} {r.prerelease && <span className="badge badge-warn">Beta</span>}</b>
+              <span className="row">
+                <span className="muted small">{r.publishedAt ? new Date(r.publishedAt).toLocaleDateString() : ""}</span>
+                <button className="link small" onClick={() => backend.openExternal(r.htmlUrl)}>Release page</button>
+              </span>
+            </div>
+            {r.body ? <pre className="release-notes">{r.body}</pre> : <p className="muted small">No notes.</p>}
+          </div>
+        ))}
+        <p className="muted small">
+          Rolling back: Novastrap doesn't update itself yet (that needs signed release builds), so there is nothing to undo automatically.
+          To go back, download an earlier version from its release page.
+        </p>
+      </Card>
+      <Card title="Update history">
+        {rel.data?.history.length ? (
+          <ul className="list compact">
+            {[...rel.data.history].reverse().map((v) => (
+              <li key={v.version + v.firstRun}><span className="grow">Version {v.version}</span><span className="muted small">first run {new Date(v.firstRun * 1000).toLocaleString()}</span></li>
+            ))}
+          </ul>
+        ) : <Empty>Versions you run will be listed here.</Empty>}
+      </Card>
+    </>
+  );
+}
+
+function Shortcuts({ draft, set, save }: { draft: S; set: (patch: Partial<S["shortcuts"]>) => void; save: () => Promise<void> }) {
+  const problems = useAsync(() => backend.shortcutProblems(), [draft.shortcuts.enabled]);
+  const sc = draft.shortcuts;
+  const rows: { key: "showWindow" | "toggleHud" | "play"; label: string; hint: string }[] = [
+    { key: "showWindow", label: "Open Novastrap", hint: "Brings the window back, also from the tray." },
+    { key: "toggleHud", label: "Second-screen HUD", hint: "Opens or closes the HUD window." },
+    { key: "play", label: "Play Roblox", hint: "Same as the Play button: your Play-bar instance, or the Roblox app." },
+  ];
+  return (
+    <Card title="Global keyboard shortcuts">
+      <p className="muted small">These work system-wide, even while Novastrap is hidden. Use Ctrl, Alt, Shift or Win plus a letter, digit or F1–F24 (for example <code>Ctrl+Alt+P</code>). Leave a box empty to turn that one off.</p>
+      <Toggle label="Enable global shortcuts" checked={sc.enabled} onChange={(v) => set({ enabled: v })} />
+      <div className="form-grid">
+        {rows.map((r) => (
+          <Field key={r.key} label={r.label} hint={r.hint}>
+            <input className="input" value={sc[r.key]} disabled={!sc.enabled} onChange={(e) => set({ [r.key]: e.target.value } as Partial<S["shortcuts"]>)} />
+          </Field>
+        ))}
+      </div>
+      <div className="row"><button className="btn btn-primary" onClick={async () => { await save(); await problems.reload(); }}>Save shortcuts</button></div>
+      {problems.data && problems.data.length > 0 && (
+        <div className="error-box"><span>{problems.data.join(" · ")}</span></div>
+      )}
+    </Card>
+  );
+}
+
+function About({ channel, setChannel }: { channel: string; setChannel: (c: "stable" | "beta") => void }) {
+  const info = useAsync(() => backend.appInfo());
+  const upd = useAsync(() => backend.checkAppUpdate(), [channel]);
+  return (
+    <>
     <Card title="About Novastrap">
       <p>Version {info.data?.version ?? "…"}. An open-source (MIT) launcher for the Roblox desktop client. Not affiliated with or endorsed by Roblox Corporation.</p>
       {upd.loading && <p className="muted">Checking GitHub for a newer release…</p>}
@@ -74,11 +140,19 @@ function About() {
           <p className="ok">Version {upd.data.latest} is available. <button className="link" onClick={() => backend.openExternal(upd.data!.url!)}>Open release page</button></p>
         ) : <p className="muted">{upd.data.latest ? `You're on the latest release (${upd.data.latest}).` : "No releases have been published yet."}</p>
       )}
+      <Field label="Update channel" hint="Beta also offers pre-releases published on GitHub. Novastrap only notifies; you download updates yourself.">
+        <select className="input narrow" value={channel} onChange={(e) => setChannel(e.target.value as "stable" | "beta")}>
+          <option value="stable">Stable</option>
+          <option value="beta">Beta</option>
+        </select>
+      </Field>
       <div className="row">
         <button className="btn" onClick={() => backend.openExternal("https://github.com/Ahere12/Novastrap")}>Source code</button>
         <button className="btn" onClick={upd.reload}>Check again</button>
       </div>
     </Card>
+    <Releases channel={channel} />
+    </>
   );
 }
 
@@ -107,6 +181,8 @@ export function Settings() {
           <Toggle label="Track game activity" hint="Reads Roblox's own log files to show recently played, playtime, the HUD and Discord presence. Stays on this PC."
             checked={draft.general.trackActivity} onChange={(v) => instant("general", { trackActivity: v })} />
           <Toggle label="Minimize Novastrap when Roblox starts" checked={draft.general.minimizeOnLaunch} onChange={(v) => instant("general", { minimizeOnLaunch: v })} />
+          <Toggle label="Keep running in the system tray when closed" hint="Closing the window hides Novastrap; open it again from the tray icon. Quit from the tray menu."
+            checked={draft.general.closeToTray} onChange={(v) => instant("general", { closeToTray: v })} />
           <p className="muted small">Theme, background and fonts are under Customize.</p>
         </Card>
       )}
@@ -153,7 +229,8 @@ export function Settings() {
       )}
       {tab === "storage" && <Storage />}
       {tab === "logs" && <Logs />}
-      {tab === "about" && <About />}
+      {tab === "about" && <About channel={draft.updates.channel} setChannel={(c) => void instant("updates", { channel: c })} />}
+      {tab === "shortcuts" && <Shortcuts draft={draft} set={(p) => set("shortcuts", p)} save={async () => { await saveText(); }} />}
     </Page>
   );
 }
